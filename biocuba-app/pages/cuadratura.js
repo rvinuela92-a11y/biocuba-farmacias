@@ -19,7 +19,7 @@ export default function Cuadratura() {
     if (typeof window !== 'undefined') {
       setTimeout(() => {
         window._initCuadratura && window._initCuadratura()
-      }, 100)
+      }, 300)
     }
   }, [])
 
@@ -230,11 +230,16 @@ export default function Cuadratura() {
           <div className="content-hdr">
             <span style={{fontSize:15,fontWeight:600}}>Arqueo de Caja</span>
             <div style={{display:'flex',gap:4}}>
-              {['ingresar','historial','dashboard'].map((t,i) => (
-                <button key={t} id={'tab-btn-'+t} className={'tab'+(i===0?' on':'')}
-                  onClick={() => window._setTab(t)}
+              {[
+                {id:'ingresar',label:'Ingreso Diario'},
+                {id:'depositos',label:'Depósitos'},
+                {id:'historial',label:'Historial del Mes'},
+                {id:'dashboard',label:'Resumen Mensual'},
+              ].map((t,i) => (
+                <button key={t.id} id={'tab-btn-'+t.id} className={'tab'+(i===0?' on':'')}
+                  onClick={() => window._setTab(t.id)}
                   style={{padding:'8px 14px',fontSize:12}}>
-                  {t==='ingresar'?'Ingreso Diario':t==='historial'?'Historial del Mes':'Resumen Mensual'}
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -604,7 +609,10 @@ let golan={ef:0,efNeto:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,devTotal:0,tot
 
 window._parsearCSV=async function(file,n){
   if(!file)return
-  const text=await file.text()
+  // Leer con encoding latin1 para CSV de Golan
+  const buffer=await file.arrayBuffer()
+  const decoder=new TextDecoder('iso-8859-1')
+  const text=decoder.decode(buffer)
   const pm=s=>parseInt((s||'').replace(/[$.()\\.\\s]/g,'').replace(/,/g,''))||0
   const r={efBruto:0,efNeto:0,deb:0,cred:0,transf:0,cheque:0,devTotal:0,totalVentas:0,convenios:0}
   for(const line of text.replace(/\\r/g,'').split('\\n')){
@@ -1085,8 +1093,13 @@ window._setTab=function(name){
 }
 
 window._initCuadratura=function(){
-  buildBilletes()
-  window._recalc()
+  // Retry buildBilletes hasta que el DOM esté listo
+  function tryBuild(intentos){
+    const el=g('billetes1')
+    if(el){buildBilletes();window._recalc()}
+    else if(intentos>0)setTimeout(()=>tryBuild(intentos-1),200)
+  }
+  tryBuild(10)
   const f=g('fecha')
   if(f){f.value=new Date().toISOString().split('T')[0];window._updDia()}
 }
@@ -1097,5 +1110,3 @@ window._initCuadratura()
     </>
   )
 }
-
-
