@@ -18,7 +18,7 @@ export default function Cuadratura() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setTimeout(() => {
-        window._initCuadratura && window._initCuadratura()
+        window._initCuadratura && setTimeout(window._initCuadratura, 500)
       }, 300)
     }
   }, [])
@@ -279,12 +279,12 @@ export default function Cuadratura() {
             <div className="paso-body">
               <div className="golan-grid">
                 <label className="upload-zona" id="zona1">
-                  <input type="file" accept=".csv" onChange={e => window._parsearCSV && window._parsearCSV(e.target.files[0], 1)} />
+                  <input type="file" accept=".csv" onChange={e => { const f=e.target.files[0]; if(f && window._parsearCSV) window._parsearCSV(f,1); }} />
                   <span style={{fontSize:22}}>📄</span>
                   <div><div className="upload-txt" id="nombre1">Importar Cierre Z — Caja 1</div><div className="upload-sub">Golan → Cierre Z → Exportar CSV</div></div>
                 </label>
                 <label className="upload-zona" id="zona2">
-                  <input type="file" accept=".csv" onChange={e => window._parsearCSV && window._parsearCSV(e.target.files[0], 2)} />
+                  <input type="file" accept=".csv" onChange={e => { const f=e.target.files[0]; if(f && window._parsearCSV) window._parsearCSV(f,2); }} />
                   <span style={{fontSize:22}}>📄</span>
                   <div><div className="upload-txt" id="nombre2">Importar Cierre Z — Caja 2</div><div className="upload-sub">Golan → Cierre Z → Exportar CSV</div></div>
                 </label>
