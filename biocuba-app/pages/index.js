@@ -26,8 +26,8 @@ export default function Cuadratura() {
   return (
     <>
       <Head>
-        <title>Cuadratura de Caja — BioCuba</title>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" />
+        <title>Arqueo de Caja — BioCuba</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Inter:wght@400;500;600;700&display=swap" />
       </Head>
 
       <style>{`
@@ -39,7 +39,7 @@ export default function Cuadratura() {
           --red:#c0392b;--rbg:#fde8e8;--rbdr:#e8aaaa;
           --amber:#7a5100;--abg:#fef8ec;--abdr:#e8d5a3;
           --blue:#1a4a8a;--bbg:#eef3fc;--bbdr:#c5d8f5;
-          --br:#e53030;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+          --br:#e53030;--font:'DM Sans',sans-serif;--mono:'Inter',sans-serif;
         }
         body{font-family:var(--font);background:var(--bg);color:var(--tx);min-height:100vh}
         .hdr{background:#fff;border-bottom:2.5px solid var(--br);padding:0 24px;display:flex;align-items:center;min-height:54px;gap:14px}
@@ -211,7 +211,7 @@ export default function Cuadratura() {
           <div className="sb-sep"></div>
 
           <div className="sb-section">Módulos</div>
-          <Link href="/cuadratura" className="sb-link active">💰 Cuadratura de caja</Link>
+          <Link href="/cuadratura" className="sb-link active">💰 Arqueo de Caja</Link>
           <Link href="/bienestar" className="sb-link">🏥 Bienestar Municipal</Link>
           <span className="sb-link soon">📊 Dashboard Chipax <span style={{fontSize:9,marginLeft:'auto',background:'var(--s2)',padding:'1px 6px',borderRadius:10}}>Próximo</span></span>
           <span className="sb-link soon">🛒 Compras <span style={{fontSize:9,marginLeft:'auto',background:'var(--s2)',padding:'1px 6px',borderRadius:10}}>Próximo</span></span>
@@ -220,7 +220,7 @@ export default function Cuadratura() {
         {/* CONTENIDO */}
         <div className="content">
           <div className="content-hdr">
-            <span style={{fontSize:15,fontWeight:600}}>Cuadratura de Caja</span>
+            <span style={{fontSize:15,fontWeight:600}}>Arqueo de Caja</span>
             <div style={{display:'flex',gap:4}}>
               {['ingresar','historial','dashboard'].map((t,i) => (
                 <button key={t} id={'tab-btn-'+t} className={'tab'+(i===0?' on':'')}
@@ -238,7 +238,7 @@ export default function Cuadratura() {
         <div id="tab-ingresar">
 
           <div className="ctrl-bar">
-            <select id="suc" onChange={() => window._verificarGuardado && window._verificarGuardado()}>
+            <select id="suc" onChange={() => { window._verificarGuardado && window._verificarGuardado(); window._updDia && window._updDia() }}>
               <option value="maipu">Maipú</option>
               <option value="sanbernardo">San Bernardo</option>
               <option value="providencia">Providencia</option>
@@ -415,7 +415,7 @@ export default function Cuadratura() {
             <span style={{fontSize:11,color:'var(--t3)'}}>Los datos quedan guardados y disponibles para todas las sucursales</span>
             <div style={{display:'flex',gap:8}}>
               <button className="btn-s" onClick={() => window._limpiar && window._limpiar()}>Limpiar</button>
-              <button className="btn-p" onClick={() => window._guardar && window._guardar()}>Guardar Cuadratura</button>
+              <button className="btn-p" onClick={() => window._guardar && window._guardar()}>Guardar Arqueo</button>
             </div>
           </div>
         </div>
@@ -599,7 +599,10 @@ window._parsearCSV=async function(file,n){
   if(g('sumup-golan'))g('sumup-golan').textContent=fmt(golan.deb+golan.cred)
   if(g('transf-golan'))g('transf-golan').textContent=fmt(golan.transf)
   if(g('p1num')){g('p1num').textContent='✓';g('p1num').classList.add('done')}
-  await actualizarConvenios()
+  const sucursal=document.getElementById('suc')?.value
+  const convBox=document.getElementById('convenios-box')
+  if(convBox)convBox.style.display=sucursal==='maipu'?'block':'none'
+  if(sucursal==='maipu') await actualizarConvenios()
   window._recalcSumup();window._recalcTransf();window._recalc()
   toast('✓ Caja '+n+' importada — '+fmt(r.totalVentas))
 }
@@ -753,6 +756,15 @@ window._recalc=function(){
 }
 
 window._updDia=function(){
+  const suc=document.getElementById('suc')?.value
+  const convBox=document.getElementById('convenios-box')
+  if(convBox)convBox.style.display=suc==='maipu'?'block':'none'
+  const kvConv=document.getElementById('kv-conv')
+  const kvConvSub=document.getElementById('kv-conv-sub')
+  if(kvConv){
+    const kpiConv=kvConv.closest('.kpi')
+    if(kpiConv)kpiConv.style.display=suc==='maipu'?'block':'none'
+  }
   const f=gv('fecha');if(f&&g('dianom'))g('dianom').textContent=dnom(f)
   window._verificarGuardado()
   actualizarConvenios()
@@ -864,7 +876,7 @@ window._exportCSV=async function(){
   })
   const csv=rows.map(r=>r.map(v=>'"'+v+'"').join(';')).join('\\n')
   const blob=new Blob(['\\uFEFF'+csv],{type:'text/csv;charset=utf-8'})
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cuadratura_biocuba_'+mes+'.csv';a.click()
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='arqueo_biocuba_'+mes+'.csv';a.click()
   toast('Archivo CSV exportado correctamente')
 }
 
