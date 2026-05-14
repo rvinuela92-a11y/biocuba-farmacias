@@ -1097,3 +1097,4 @@ window._initCuadratura()
     </>
   )
 }
+export const dynamic = 'force-dynamic'
