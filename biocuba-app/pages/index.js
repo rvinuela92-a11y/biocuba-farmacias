@@ -54,8 +54,20 @@ export default function Cuadratura() {
         .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
         .kpi{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:14px 16px}
         .kpi-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
-        .kpi-val{font-family:var(--mono);font-size:20px;font-weight:500}
+        .kpi-val{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.5px}
         .kpi-sub{font-size:11px;color:var(--t3);margin-top:3px}
+        .layout{display:flex;min-height:100vh}
+        .sidebar{width:220px;background:#fff;border-right:1px solid var(--bdr);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;flex-shrink:0}
+        .sb-logo{padding:14px 16px 12px;border-bottom:2.5px solid var(--br)}
+        .sb-section{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);padding:12px 16px 4px}
+        .sb-link{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:6px;cursor:pointer;font-size:13px;text-decoration:none;color:var(--t2);font-weight:400;margin:1px 8px;transition:background .1s}
+        .sb-link:hover{background:var(--s2)}
+        .sb-link.active{color:var(--green);background:var(--gbg);font-weight:500}
+        .sb-link.soon{color:var(--t3);cursor:not-allowed;opacity:.6}
+        .sb-sep{height:1px;background:var(--bdr);margin:6px 12px}
+        .content{flex:1;display:flex;flex-direction:column;min-width:0}
+        .content-hdr{background:#fff;border-bottom:1px solid var(--bdr);padding:11px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+        .main{padding:24px 20px 80px;max-width:980px;margin:0 auto}
         .paso{background:#fff;border:1px solid var(--bdr);border-radius:12px;margin-bottom:16px;overflow:hidden}
         .paso-hdr{padding:13px 18px;background:var(--s2);border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:12px}
         .paso-num{width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -73,38 +85,38 @@ export default function Cuadratura() {
         .golan-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bbdr)}
         .golan-row:last-child{border-bottom:none;padding-top:8px;margin-top:4px}
         .golan-lbl{font-size:12px;color:var(--t2)}
-        .golan-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--blue)}
+        .golan-val{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--blue)}
         .golan-total .golan-lbl{font-weight:700;font-size:13px;color:var(--tx)}
-        .golan-total .golan-val{font-size:16px;color:var(--green)}
+        .golan-total .golan-val{font-size:20px;font-weight:700;color:var(--green)}
         .cajas-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
         .caja-wrap{border:1px solid var(--bdr);border-radius:10px;overflow:hidden}
         .caja-hdr{padding:10px 16px;background:var(--s2);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
         .caja-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t2)}
-        .caja-total-disp{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--green)}
+        .caja-total-disp{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)}
         .billetes-lista{padding:12px 16px}
         .billete-row{display:grid;grid-template-columns:72px 60px 1fr;gap:8px;align-items:center;margin-bottom:6px}
-        .billete-lbl{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--t2);text-align:right}
-        .billete-inp{font-family:var(--mono);font-size:15px;padding:6px 8px;border:1px solid var(--bdr);border-radius:6px;text-align:center;outline:none;width:100%;background:#fff;transition:border-color .15s}
+        .billete-lbl{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--tx);text-align:right}
+        .billete-inp{font-family:var(--mono);font-size:18px;font-weight:600;padding:8px 10px;border:1.5px solid var(--bdr);border-radius:6px;text-align:center;outline:none;width:100%;background:#fff;transition:border-color .15s}
         .billete-inp:focus{border-color:var(--blue)}
-        .billete-sub{font-family:var(--mono);font-size:11px;color:var(--green);text-align:right;font-weight:500}
+        .billete-sub{font-family:var(--mono);font-size:14px;color:var(--green);text-align:right;font-weight:700}
         .caja-fondo{padding:10px 16px;border-top:1px solid var(--bdr);background:#fafaf8;display:flex;align-items:center;justify-content:space-between;gap:10px}
         .caja-fondo label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t3)}
         .fondo-inp{font-family:var(--mono);font-size:13px;padding:6px 10px;border:1px solid var(--bdr);border-radius:6px;width:110px;text-align:right;outline:none;transition:border-color .15s}
         .fondo-inp:focus{border-color:var(--blue)}
         .caja-dep{padding:8px 16px;border-top:1px solid var(--bdr);background:var(--gbg);display:flex;align-items:center;justify-content:space-between}
         .caja-dep-lbl{font-size:11px;font-weight:600;color:var(--green)}
-        .caja-dep-val{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--green)}
+        .caja-dep-val{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green)}
         .cmp-box{margin-top:16px;background:var(--s2);border:1px solid var(--bdr);border-radius:9px;padding:14px}
         .cmp-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t2);margin-bottom:10px}
         .cmp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center}
         .cmp-lbl{font-size:10px;color:var(--t3);margin-bottom:4px}
-        .cmp-val{font-family:var(--mono);font-size:16px;font-weight:500}
+        .cmp-val{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-.5px}
         .convenios-box{background:#fff;border:1px solid var(--bdr);border-radius:9px;padding:14px;margin-top:16px}
         .conv-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t2);margin-bottom:12px}
         .conv-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bdr)}
         .conv-row:last-child{border-bottom:none}
         .conv-lbl{font-size:12px;color:var(--t2)}
-        .conv-val{font-family:var(--mono);font-size:13px;font-weight:500}
+        .conv-val{font-family:var(--mono);font-size:16px;font-weight:600}
         .alerta-conv{border-radius:9px;padding:12px 16px;margin-top:12px;font-size:13px;font-weight:500;display:none}
         .alerta-ok{background:var(--gbg);border:1px solid var(--gbdr);color:var(--green);display:flex;align-items:center;gap:8px}
         .alerta-bad{background:var(--rbg);border:1px solid var(--rbdr);color:var(--red)}
@@ -176,19 +188,49 @@ export default function Cuadratura() {
         }
       `}</style>
 
-      {/* HEADER */}
-      <div className="hdr">
-        <Link href="/" style={{fontSize:12,color:'var(--t2)',textDecoration:'none'}}>← Inicio</Link>
-        <div className="hdr-sep"></div>
-        <span style={{fontSize:14,fontWeight:500}}>Cuadratura de Caja</span>
-      </div>
+      <div className="layout">
+        {/* SIDEBAR */}
+        <aside className="sidebar">
+          <div className="sb-logo">
+            <svg width="110" height="34" viewBox="0 0 110 34" fill="none">
+              <rect x="1" y="2" width="7" height="18" rx="2.5" fill="#e53030"/>
+              <rect x="0" y="9" width="9" height="9" rx="2" fill="#e53030"/>
+              <path d="M13 4 L13 28 L17 28 L17 20 Q24 24 26 15 Q27 8 19 5 Q15 4 13 4Z" fill="#1a3fa0"/>
+              <ellipse cx="20" cy="15" rx="5" ry="7" fill="#1a3fa0"/>
+              <text x="32" y="20" fontFamily="Arial,sans-serif" fontSize="14" fontWeight="700"><tspan fill="#1a3fa0">Bio</tspan><tspan fill="#e53030">Cuba</tspan></text>
+              <text x="33" y="30" fontFamily="Arial,sans-serif" fontSize="6" fill="#666" letterSpacing="2.5">FARMACIA</text>
+            </svg>
+          </div>
 
-      {/* TABS */}
-      <div className="tabs">
-        <button className="tab on" id="tab-btn-ingresar" onClick={() => window._setTab('ingresar')}>Ingreso Diario</button>
-        <button className="tab" id="tab-btn-historial" onClick={() => window._setTab('historial')}>Historial del Mes</button>
-        <button className="tab" id="tab-btn-dashboard" onClick={() => window._setTab('dashboard')}>Resumen Mensual</button>
-      </div>
+          <div className="sb-section">RRHH y Sueldos</div>
+          <Link href="/" className="sb-link">⊞ Inicio</Link>
+          <Link href="/?sec=resumen" className="sb-link">📋 Resumen del mes</Link>
+          <Link href="/?sec=colaboradores" className="sb-link">👤 Colaboradores</Link>
+          <Link href="/?sec=exportar" className="sb-link">⬇ Exportar</Link>
+
+          <div className="sb-sep"></div>
+
+          <div className="sb-section">Módulos</div>
+          <Link href="/cuadratura" className="sb-link active">💰 Cuadratura de caja</Link>
+          <Link href="/bienestar" className="sb-link">🏥 Bienestar Municipal</Link>
+          <span className="sb-link soon">📊 Dashboard Chipax <span style={{fontSize:9,marginLeft:'auto',background:'var(--s2)',padding:'1px 6px',borderRadius:10}}>Próximo</span></span>
+          <span className="sb-link soon">🛒 Compras <span style={{fontSize:9,marginLeft:'auto',background:'var(--s2)',padding:'1px 6px',borderRadius:10}}>Próximo</span></span>
+        </aside>
+
+        {/* CONTENIDO */}
+        <div className="content">
+          <div className="content-hdr">
+            <span style={{fontSize:15,fontWeight:600}}>Cuadratura de Caja</span>
+            <div style={{display:'flex',gap:4}}>
+              {['ingresar','historial','dashboard'].map((t,i) => (
+                <button key={t} id={'tab-btn-'+t} className={'tab'+(i===0?' on':'')}
+                  onClick={() => window._setTab(t)}
+                  style={{padding:'8px 14px',fontSize:12}}>
+                  {t==='ingresar'?'Ingreso Diario':t==='historial'?'Historial del Mes':'Resumen Mensual'}
+                </button>
+              ))}
+            </div>
+          </div>
 
       <div className="main">
 
@@ -410,6 +452,9 @@ export default function Cuadratura() {
 
       </div>
 
+      </div>{/* content */}
+      </div>{/* layout */}
+
       <div className="toast" id="toast"></div>
 
       <script dangerouslySetInnerHTML={{__html:`
@@ -517,13 +562,13 @@ window._parsearCSV=async function(file,n){
     // Ventas brutas col 8
     if(c[2]==='Cheque 30 dias'||c[2]==='Cheque 30 días') r.cheque=pm(c[8])
     if(c[2]==='Efectivo') r.efBruto=pm(c[8])
-    if(c[2]&&c[2].includes('Tarjeta D')&&c[2].includes('bito')) r.deb=pm(c[8])
-    if(c[2]&&c[2].includes('Tarjeta Cr')&&c[2].includes('dito')) r.cred=pm(c[8])
+    if(c[2]&&(c[2].includes('D\xe9bito')||c[2].includes('D\xc3\xa9bito')||c[2].includes('Debito')||c[2].includes('bito'))) r.deb=pm(c[8])
+    if(c[2]&&(c[2].includes('Cr\xe9dito')||c[2].includes('Cr\xc3\xa9dito')||c[2].includes('Credito')||c[2].includes('dito'))) r.cred=pm(c[8])
     if(c[2]&&c[2].includes('Transferencia')) r.transf=pm(c[8])
     // Totales netos col 16 (ya con devoluciones descontadas)
     if(c[12]==='Efectivo') r.efNeto=pm(c[16])
-    if(c[12]&&c[12].includes('Tarjeta D')&&c[12].includes('bito')) r.deb=pm(c[16])
-    if(c[12]&&c[12].includes('Tarjeta Cr')&&c[12].includes('dito')) r.cred=pm(c[16])
+    if(c[12]&&(c[12].includes('D\xe9bito')||c[12].includes('D\xc3\xa9bito')||c[12].includes('Debito')||c[12].includes('bito'))) r.deb=pm(c[16])
+    if(c[12]&&(c[12].includes('Cr\xe9dito')||c[12].includes('Cr\xc3\xa9dito')||c[12].includes('Credito')||c[12].includes('dito'))) r.cred=pm(c[16])
     if(c[12]&&c[12].includes('Transferencia')) r.transf=pm(c[16])
     if(c[12]==='Cheque') r.cheque=pm(c[16])
     // Totales globales col 24
