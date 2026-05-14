@@ -5,361 +5,413 @@ import Link from 'next/link'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-const fmt = n => '$' + Math.round(n||0).toLocaleString('es-CL')
-const hoy = () => new Date().toISOString().split('T')[0]
-const SUCURSALES = { maipu: 'Maipú', sanbernardo: 'San Bernardo', providencia: 'Providencia', florida: 'La Florida' }
+const fmt = n => new Intl.NumberFormat('es-CL', {style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n||0)
 
-async function upsertCuadratura(data) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/cuadratura`, {
-    method: 'POST',
+async function query(table, select='*', filters={}) {
+  let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`
+  Object.entries(filters).forEach(([k,v]) => url += `&${k}=eq.${v}`)
+  const res = await fetch(url, {
     headers: {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates'
-    },
-    body: JSON.stringify(data)
+      'Content-Type': 'application/json'
+    }
   })
-  return res.ok
-}
-
-async function getCuadratura(mes) {
-  const desde = mes + '-01'
-  const hasta = mes + '-31'
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/cuadratura?fecha=gte.${desde}&fecha=lte.${hasta}&order=fecha.desc`,
-    { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
-  )
   return res.json()
 }
 
-export default function Cuadratura() {
-  const [tab, setTab] = useState('ingresar')
-  const [sucursal, setSucursal] = useState('maipu')
-  const [fecha, setFecha] = useState(hoy())
-  const [form, setForm] = useState({ c1:'', f1:'', c2:'', f2:'', dm:'', db:'', dc:'', do_:'', obs:'' })
-  const [depOk, setDepOk] = useState(false)
-  const [gastos, setGastos] = useState([])
-  const [golanData, setGolanData] = useState({ ef:0, deb:0, cred:0, transf:0, conv:0 })
-  const [golanCargado, setGolanCargado] = useState([false, false])
-  const [registros, setRegistros] = useState([])
-  const [saving, setSaving] = useState(false)
-  const [user, setUser] = useState('admin')
-  const mesActual = new Date().toISOString().slice(0,7)
+const Logo = () => (
+  <svg width="120" height="36" viewBox="0 0 120 36" fill="none">
+    <rect x="1" y="2" width="8" height="20" rx="3" fill="#e53030"/>
+    <rect x="0" y="9" width="10" height="9" rx="2" fill="#e53030"/>
+    <path d="M14 5 L14 31 L18 31 L18 21 Q25 25 27 17 Q28 9 21 6 Q17 5 14 5Z" fill="#1a3fa0"/>
+    <ellipse cx="21" cy="16" rx="5.5" ry="7" fill="#1a3fa0"/>
+    <text x="34" y="21" fontFamily="Arial,sans-serif" fontSize="16" fontWeight="700">
+      <tspan fill="#1a3fa0">Bio</tspan><tspan fill="#e53030">Cuba</tspan>
+    </text>
+    <text x="35" y="31" fontFamily="Arial,sans-serif" fontSize="7" fill="#666" letterSpacing="2.5">FARMACIA</text>
+  </svg>
+)
 
-  useEffect(() => { if(tab==='historial') cargarRegistros() }, [tab])
+export default function Home() {
+  const [loading, setLoading] = useState(true)
+  const [colaboradores, setColaboradores] = useState([])
+  const [periodos, setPeriodos] = useState([])
+  const [mesActivo, setMesActivo] = useState('')
+  const [ventas, setVentas] = useState([])
+  const [bonosQF, setBonosQF] = useState([])
+  const [anticipos, setAnticipos] = useState([])
+  const [horas, setHoras] = useState([])
+  const [activeSection, setActiveSection] = useState('dashboard')
+  const [error, setError] = useState(null)
 
-  async function cargarRegistros() {
-    const data = await getCuadratura(mesActual)
-    setRegistros(Array.isArray(data) ? data : [])
-  }
+  useEffect(() => { initApp() }, [])
+  useEffect(() => { if(mesActivo) loadDatosMes() }, [mesActivo])
 
-  const f = k => parseFloat((form[k]+'').replace(/[^\d.,]/g,'').replace(',','.'))||0
-  const n1 = Math.max(0, f('c1')-f('f1'))
-  const n2 = Math.max(0, f('c2')-f('f2'))
-  const ef = n1+n2
-  const dm = depOk ? (parseFloat(form.dm)||0) : 0
-  const tg = gastos.reduce((s,g)=>s+g.monto,0)
-  const golanTotal = golanData.ef+golanData.deb+golanData.cred+golanData.transf+golanData.conv
-  const difDep = dm-ef
-  const difGolan = ef-golanData.ef
-
-  async function parsearCSV(file, cajaNum) {
-    const text = await file.text()
-    const lines = text.replace(/\r/g,'').split('\n')
-    const result = { ef:0, deb:0, cred:0, transf:0, conv:0, total:0 }
-    const monto = s => parseInt((s||'').replace(/[$.,]/g,'').trim())||0
-    for(const line of lines) {
-      const cols = line.split(',')
-      const flat = cols.map(c=>c.trim())
-      const tipo = flat[2]||''
-      const val = (cols[8]||'').trim()
-      if(tipo==='Efectivo' && val.startsWith('$')) result.ef=monto(val)
-      if(tipo==='Tarjeta Crédito' && val.startsWith('$')) result.cred=monto(val)
-      if(tipo==='Tarjeta Débito' && val.startsWith('$')) result.deb=monto(val)
-      if(tipo.includes('Transfer') && val.startsWith('$')) result.transf=monto(val)
-      if(tipo==='Total' && val.startsWith('$')) result.total=monto(val)
+  async function initApp() {
+    try {
+      const [cols, pers] = await Promise.all([
+        query('colaboradores', '*'),
+        query('periodos', '*')
+      ])
+      if(cols.error) { setError('conexion'); setLoading(false); return }
+      setColaboradores(cols||[])
+      const sorted = (pers||[]).sort((a,b)=>b.año-a.año||(b.mes||0)-(a.mes||0))
+      setPeriodos(sorted)
+      if(sorted.length) setMesActivo(sorted[0].mes_label)
+      setLoading(false)
+    } catch(e) {
+      setError('conexion')
+      setLoading(false)
     }
-    const nuevos = {...golanData}
-    nuevos.ef += result.ef
-    nuevos.deb += result.deb
-    nuevos.cred += result.cred
-    nuevos.transf += result.transf
-    nuevos.conv += result.conv
-    setGolanData(nuevos)
-    const cargados = [...golanCargado]
-    cargados[cajaNum-1] = true
-    setGolanCargado(cargados)
   }
 
-  async function guardar() {
-    if(!ef) { alert('Ingresa el efectivo de al menos una caja'); return }
-    setSaving(true)
-    const data = {
-      id: fecha+'_'+sucursal,
-      fecha, sucursal,
-      c1_total: f('c1'), c1_fondo: f('f1'), c1_neto: n1,
-      c2_total: f('c2'), c2_fondo: f('f2'), c2_neto: n2,
-      efectivo_total: ef,
-      golan_ef: golanData.ef, golan_deb: golanData.deb, golan_cred: golanData.cred,
-      golan_transf: golanData.transf, golan_conv: golanData.conv, golan_total: golanTotal,
-      deposito_monto: dm, deposito_banco: form.db, deposito_comp: form.dc, deposito_obs: form.do_,
-      gastos: JSON.stringify(gastos), gastos_total: tg,
-      observacion: form.obs, guardado_por: user,
-      updated_at: new Date().toISOString()
-    }
-    const ok = await upsertCuadratura(data)
-    setSaving(false)
-    if(ok) { alert('✓ Cuadratura guardada — '+SUCURSALES[sucursal]); limpiar() }
-    else alert('Error al guardar')
+  async function loadDatosMes() {
+    const periodo = periodos.find(p=>p.mes_label===mesActivo)
+    if(!periodo) return
+    const pid = periodo.id
+    const [v, q, a, h] = await Promise.all([
+      query('ventas','*',{periodo_id:pid}),
+      query('bonos_qf','*',{periodo_id:pid}),
+      query('anticipos','*',{periodo_id:pid}),
+      query('horas_extra','*',{periodo_id:pid}),
+    ])
+    setVentas(v||[])
+    setBonosQF(q||[])
+    setAnticipos(a||[])
+    setHoras(h||[])
   }
 
-  function limpiar() {
-    setForm({ c1:'', f1:'', c2:'', f2:'', dm:'', db:'', dc:'', do_:'', obs:'' })
-    setDepOk(false); setGastos([])
-    setGolanData({ ef:0, deb:0, cred:0, transf:0, conv:0 })
-    setGolanCargado([false,false])
+  const auxActivos = colaboradores.filter(c=>c.rol==='auxiliar'&&c.estado==='activo')
+  const tAux = ventas.reduce((s,v)=>s+v.bono,0)
+  const tQF = bonosQF.reduce((s,q)=>s+q.bono,0)
+  const tHrs = horas.reduce((s,h)=>s+h.cantidad,0)
+  const tAnt = anticipos.reduce((s,a)=>s+a.monto,0)
+
+  // Módulos internos RRHH — Principal
+  const navPrincipal = [
+    {id:'dashboard', label:'Inicio', icon:'⊞'},
+    {id:'resumen', label:'Resumen del mes', icon:'📋'},
+    {id:'desempeno', label:'Desempeño', icon:'📈'},
+    {id:'historial', label:'Historial', icon:'🗂'},
+  ]
+  // Ingresar
+  const navIngresar = [
+    {id:'auxiliares', label:'Auxiliares', icon:'💵'},
+    {id:'qf', label:'QF titular', icon:'👩‍⚕️'},
+    {id:'qfc', label:'QF complementario', icon:'🔄'},
+    {id:'anticipos', label:'Anticipos', icon:'💸'},
+    {id:'horas', label:'Horas extra', icon:'⏱'},
+  ]
+  // Administración
+  const navAdmin = [
+    {id:'colaboradores', label:'Colaboradores', icon:'👤'},
+    {id:'exportar', label:'Exportar', icon:'⬇'},
+  ]
+  const navRRHH = [
+    {id:'desempeno', label:'Desempeño', icon:'📈'},
+    {id:'colaboradores', label:'Colaboradores', icon:'👤'},
+    {id:'exportar', label:'Exportar', icon:'⬇'},
+    {id:'ajustes', label:'Ajustes', icon:'⚙️'},
+  ]
+
+  // Módulos externos (páginas propias)
+  const navModulos = [
+    {href:'/cuadratura', label:'Cuadratura de caja', icon:'💰'},
+    {href:'/bienestar', label:'Bienestar Municipal', icon:'🏥', soon:false},
+    {href:'/sindicato', label:'Sindicato Municipal', icon:'🤝', soon:false},
+    {href:'/dashboard-financiero', label:'Dashboard Chipax', icon:'📊', soon:true},
+    {href:'/compras', label:'Compras', icon:'🛒', soon:true},
+  ]
+
+  const titles = {
+    dashboard:'Inicio', resumen:'Resumen del mes', desempeno:'Desempeño',
+    colaboradores:'Colaboradores', exportar:'Exportar', ajustes:'Ajustes'
   }
 
-  const inp = (id, label, type='number', ph='0') => (
-    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-      <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858'}}>{label}</label>
-      <input type={type} value={form[id]} onChange={e=>setForm({...form,[id]:e.target.value})}
-        placeholder={ph} style={{fontFamily:type==='number'?'DM Mono,monospace':'inherit',fontSize:13,padding:'8px 11px',border:'1px solid #e3e1d8',borderRadius:7,width:'100%',outline:'none'}}/>
+  const sidebarBtn = (id, label, icon) => (
+    <button key={id} onClick={()=>setActiveSection(id)}
+      style={{display:'flex',alignItems:'center',gap:8,padding:'7px 9px',borderRadius:6,
+        cursor:'pointer',color:activeSection===id?'#2a5c3a':'#6a6858',
+        fontSize:13,border:'none',background:activeSection===id?'#e5f0e8':'transparent',
+        fontWeight:activeSection===id?500:400,width:'100%',textAlign:'left',
+        marginBottom:2,fontFamily:'inherit'}}>
+      <span>{icon}</span>{label}
+    </button>
+  )
+
+  if(loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:16,fontFamily:'DM Sans,sans-serif'}}>
+      <div style={{width:36,height:36,border:'3px solid #e3e1d8',borderTop:'3px solid #2a5c3a',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+      <p style={{color:'#6a6858',fontSize:14}}>Cargando BioCuba Farmacia...</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
-  const card = (label, val, color='#1a1910') => (
-    <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'13px 15px'}}>
-      <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#9b9880',marginBottom:5}}>{label}</div>
-      <div style={{fontSize:20,fontWeight:600,fontFamily:'DM Mono,monospace',color}}>{val}</div>
+  if(error) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'DM Sans,sans-serif'}}>
+      <div style={{background:'#fde8e8',border:'1px solid #e8aaaa',borderRadius:10,padding:24,maxWidth:400,textAlign:'center'}}>
+        <div style={{fontSize:24,marginBottom:8}}>⚠️</div>
+        <h2 style={{color:'#8b1a1a',marginBottom:8}}>Error de conexión</h2>
+        <p style={{color:'#6a6858',fontSize:13}}>No se pudo conectar a la base de datos.</p>
+      </div>
     </div>
   )
 
   return (
     <>
-      <Head><title>Cuadratura — BioCuba</title></Head>
-      <div style={{minHeight:'100vh',background:'#f4f3ef',fontFamily:"'DM Sans',sans-serif"}}>
+      <Head>
+        <title>BioCuba Farmacia — Gestión</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap"/>
+      </Head>
+      <div style={{display:'flex',minHeight:'100vh',fontFamily:"'DM Sans',sans-serif",background:'#f4f3ef'}}>
 
-        {/* HEADER */}
-        <div style={{background:'#fff',borderBottom:'2.5px solid #e53030',padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',minHeight:54}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <Link href="/" style={{fontSize:12,color:'#6a6858',textDecoration:'none'}}>← Inicio</Link>
-            <div style={{width:1,height:20,background:'#e3e1d8'}}></div>
-            <span style={{fontSize:14,fontWeight:500}}>Cuadratura de caja</span>
-            <span style={{fontSize:11,fontWeight:500,padding:'3px 10px',borderRadius:20,background:'#e8f4ee',color:'#2a5c3a'}}>
-              {SUCURSALES[sucursal]}
-            </span>
+        {/* SIDEBAR */}
+        <aside style={{width:220,background:'#fff',borderRight:'1px solid #e3e1d8',display:'flex',flexDirection:'column',position:'sticky',top:0,height:'100vh',overflowY:'auto'}}>
+
+          {/* Logo */}
+          <div style={{padding:'14px 16px 12px',borderBottom:'2.5px solid #e53030'}}>
+            <Logo/>
           </div>
-          <div style={{display:'flex',gap:4}}>
-            {['ingresar','historial'].map(t=>(
-              <button key={t} onClick={()=>setTab(t)} style={{fontFamily:'inherit',fontSize:12,fontWeight:500,
-                padding:'10px 16px',border:'none',background:'transparent',color:tab===t?'#1a3fa0':'#6a6858',
-                borderBottom:tab===t?'2px solid #1a3fa0':'2px solid transparent',cursor:'pointer'}}>
-                {t==='ingresar'?'Ingresar día':'Historial'}
-              </button>
+
+          {/* Principal */}
+          <div style={{padding:'10px 8px 4px'}}>
+            <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.7,color:'#9b9880',padding:'4px 8px 6px'}}>
+              Principal
+            </div>
+            {navPrincipal.map(item=>sidebarBtn(item.id, item.label, item.icon))}
+            <div style={{fontSize:10,fontWeight:600,letterSpacing:'.7px',color:'var(--t3)',textTransform:'uppercase',padding:'10px 8px 3px',marginTop:4}}>
+              Ingresar
+            </div>
+            {navIngresar.map(item=>sidebarBtn(item.id, item.label, item.icon))}
+            <div style={{fontSize:10,fontWeight:600,letterSpacing:'.7px',color:'var(--t3)',textTransform:'uppercase',padding:'10px 8px 3px',marginTop:4}}>
+              Administración
+            </div>
+            {navAdmin.map(item=>sidebarBtn(item.id, item.label, item.icon))}
+          </div>
+
+          {/* Separador */}
+          <div style={{margin:'6px 12px',borderTop:'1px solid #e3e1d8'}}></div>
+
+          {/* Módulos */}
+          <div style={{padding:'4px 8px'}}>
+            <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.7,color:'#9b9880',padding:'4px 8px 6px'}}>
+              Módulos
+            </div>
+            {navModulos.map(m=>(
+              m.soon ? (
+                <div key={m.href} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 9px',borderRadius:6,
+                  color:'#bbb9ae',fontSize:13,marginBottom:2,cursor:'not-allowed'}}>
+                  <span>{m.icon}</span>
+                  <span>{m.label}</span>
+                  <span style={{fontSize:9,padding:'1px 6px',borderRadius:10,background:'#f0efe9',color:'#9b9880',marginLeft:'auto'}}>Próximo</span>
+                </div>
+              ) : (
+                <Link key={m.href} href={m.href} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 9px',borderRadius:6,
+                  color:'#6a6858',fontSize:13,textDecoration:'none',marginBottom:2,
+                  background:'transparent',fontWeight:400,
+                  transition:'background .1s'}}>
+                  <span>{m.icon}</span>
+                  <span>{m.label}</span>
+                  {m.badge && <span style={{fontSize:9,padding:'1px 6px',borderRadius:10,background:'#eef3fc',color:'#1a4a8a',marginLeft:'auto'}}>{m.badge}</span>}
+                </Link>
+              )
             ))}
           </div>
-        </div>
 
-        <div style={{padding:'24px 20px 80px',maxWidth:880,margin:'0 auto'}}>
-          {tab==='ingresar' && (
-            <>
-              {/* Controles */}
-              <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap',alignItems:'center',
-                background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'12px 16px'}}>
-                <select value={sucursal} onChange={e=>setSucursal(e.target.value)}
-                  style={{fontFamily:'inherit',fontSize:13,padding:'7px 11px',border:'1px solid #e3e1d8',borderRadius:7,background:'#fff'}}>
-                  {Object.entries(SUCURSALES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-                </select>
-                <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)}
-                  style={{fontFamily:'inherit',fontSize:13,padding:'7px 11px',border:'1px solid #e3e1d8',borderRadius:7}}/>
-                <span style={{fontSize:12,color:'#9b9880'}}>
-                  {['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][new Date(fecha+'T12:00:00').getDay()]}
-                </span>
-              </div>
+          {/* Footer */}
+          <div style={{marginTop:'auto',padding:'10px 16px',borderTop:'1px solid #e3e1d8',fontSize:11,color:'#9b9880'}}>
+            <div>{mesActivo}</div>
+            <div>{colaboradores.filter(c=>c.estado==='activo').length} activos</div>
+          </div>
+        </aside>
 
-              {/* KPIs */}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
-                {card('Venta total c/IVA (Golan)', fmt(golanTotal), '#2a5c3a')}
-                {card('Efectivo a depositar', fmt(ef))}
-                {card('Dif. Golan vs real', fmt(ef-golanData.ef), Math.abs(ef-golanData.ef)<2000?'#2a5c3a':'#c0392b')}
-                {card('Dif. con depósito', dm>0?(difDep>=0?'+':'')+fmt(difDep):'—', dm>0&&Math.abs(difDep)<2000?'#2a5c3a':'#9b9880')}
-              </div>
+        {/* MAIN */}
+        <main style={{flex:1,display:'flex',flexDirection:'column'}}>
+          <div style={{background:'#fff',borderBottom:'1px solid #e3e1d8',padding:'11px 22px',
+            display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:20}}>
+            <div style={{fontSize:15,fontWeight:600}}>{titles[activeSection]}</div>
+            <select value={mesActivo} onChange={e=>setMesActivo(e.target.value)}
+              style={{fontSize:13,padding:'6px 10px',border:'1px solid #ccc9bc',borderRadius:6,fontFamily:'inherit',background:'#fff'}}>
+              {periodos.map(p=><option key={p.id}>{p.mes_label}</option>)}
+            </select>
+          </div>
 
-              {/* Upload CSV Golan */}
-              <div style={{background:'#eef3fc',border:'1px solid #c5d8f5',borderRadius:10,padding:16,marginBottom:20}}>
-                <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#1a4a8a',marginBottom:12}}>
-                  Cierre Z de Golan — subir CSV
+          <div style={{padding:'18px 22px'}}>
+
+            {/* DASHBOARD */}
+            {activeSection==='dashboard' && (
+              <div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10,marginBottom:16}}>
+                  {[
+                    {label:'Bonos auxiliares', val:fmt(tAux)},
+                    {label:'Bonos QF', val:fmt(tQF)},
+                    {label:'Horas extra', val:tHrs+' hrs'},
+                    {label:'Anticipos', val:fmt(tAnt), red:true},
+                    {label:'Activos', val:colaboradores.filter(c=>c.estado==='activo').length},
+                  ].map(s=>(
+                    <div key={s.label} style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'12px 14px'}}>
+                      <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#9b9880',marginBottom:4}}>{s.label}</div>
+                      <div style={{fontSize:20,fontWeight:600,fontFamily:'DM Mono',color:s.red?'#8b1a1a':'#1a1910'}}>{s.val}</div>
+                    </div>
+                  ))}
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                  {[1,2].map(n=>(
-                    <label key={n} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
-                      background:golanCargado[n-1]?'#e8f4ee':'#fff',
-                      border:golanCargado[n-1]?'1.5px solid #aed0b8':'1.5px dashed #8ab4e8',
-                      borderRadius:8,cursor:'pointer'}}>
-                      <span style={{fontSize:20}}>📂</span>
-                      <div>
-                        <div style={{fontSize:13,fontWeight:500,color:golanCargado[n-1]?'#2a5c3a':'#1a4a8a'}}>
-                          {golanCargado[n-1]?'✓ Caja '+n+' cargada':'Subir CSV Caja '+n}
+
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:16}}>
+                  <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                    <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>👥 Auxiliares — {mesActivo}</div>
+                    {auxActivos.length===0 && <div style={{color:'#9b9880',fontSize:13}}>Sin auxiliares activos</div>}
+                    {auxActivos.map(c=>{
+                      const v = ventas.find(x=>x.colaborador_id===c.id)
+                      return (
+                        <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid #e3e1d8'}}>
+                          <div style={{width:8,height:8,borderRadius:'50%',background:v?'#2a5c3a':c.ausencia?'#7a4e00':'#ccc9bc',flexShrink:0}}></div>
+                          <div style={{flex:1,fontSize:13}}>{c.nombre} {c.apellido}</div>
+                          {v?<span style={{fontSize:12,fontFamily:'DM Mono',color:'#2a5c3a'}}>{fmt(v.venta_neta)}</span>
+                            :c.ausencia?<span style={{fontSize:11,color:'#7a4e00'}}>{c.ausencia}</span>
+                            :<span style={{fontSize:11,color:'#9b9880'}}>Sin ingresar</span>}
                         </div>
-                        <div style={{fontSize:11,color:'#9b9880'}}>Exportar desde Golan → CSV</div>
-                      </div>
-                      <input type="file" accept=".csv" style={{display:'none'}}
-                        onChange={e=>e.target.files[0]&&parsearCSV(e.target.files[0],n)}/>
-                    </label>
-                  ))}
-                </div>
-                {golanCargado.some(Boolean) && (
-                  <div style={{marginTop:12,display:'flex',gap:16,fontSize:12,color:'#1a4a8a',flexWrap:'wrap'}}>
-                    <span>Ef: {fmt(golanData.ef)}</span>
-                    <span>Déb: {fmt(golanData.deb)}</span>
-                    <span>Créd: {fmt(golanData.cred)}</span>
-                    {golanData.transf>0&&<span>Transf: {fmt(golanData.transf)}</span>}
-                    <span style={{fontWeight:600}}>Total: {fmt(golanTotal)}</span>
+                      )
+                    })}
                   </div>
-                )}
-              </div>
 
-              {/* Cajas */}
-              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:16,marginBottom:16}}>
-                <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858',marginBottom:12,paddingBottom:8,borderBottom:'1px solid #e3e1d8'}}>
-                  Efectivo en cajas — conteo real
-                </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                  {[1,2].map(n=>(
-                    <div key={n} style={{background:'#f4f3ef',borderRadius:9,padding:'13px 15px'}}>
-                      <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',color:'#6a6858',marginBottom:10}}>Caja {n}</div>
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                        {inp('c'+n,'Total contado')}
-                        {inp('f'+n,'Fondo de caja')}
-                      </div>
-                      <div style={{fontSize:12,fontFamily:'DM Mono,monospace',color:'#6a6858',textAlign:'right',marginTop:8}}>
-                        Neto: {fmt(n===1?n1:n2)}
-                      </div>
+                  <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                    <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>⚡ Acciones rápidas</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      {[
+                        {label:'Ver resumen del mes', sec:'resumen', color:'#2a5c3a', bg:'#e5f0e8', border:'#aed0b8'},
+                        {label:'Ver colaboradores', sec:'colaboradores', color:'#1a1910', bg:'#fff', border:'#ccc9bc'},
+                        {label:'Exportar para contadora', sec:'exportar', color:'#1c3a5e', bg:'#e4edf5', border:'#adc5de'},
+                      ].map(a=>(
+                        <button key={a.sec} onClick={()=>setActiveSection(a.sec)}
+                          style={{padding:'9px 14px',borderRadius:6,fontSize:13,cursor:'pointer',
+                            border:`1px solid ${a.border}`,background:a.bg,color:a.color,fontFamily:'inherit',textAlign:'left'}}>
+                          {a.label}
+                        </button>
+                      ))}
+                      <Link href="/cuadratura" style={{padding:'9px 14px',borderRadius:6,fontSize:13,
+                        border:'1px solid #c5d8f5',background:'#eef3fc',color:'#1a4a8a',textDecoration:'none',display:'block'}}>
+                        💰 Ir a cuadratura de caja
+                      </Link>
                     </div>
-                  ))}
-                </div>
-                <div style={{fontSize:10,color:'#9b9880',marginTop:8}}>Neto = Total contado − Fondo de caja</div>
-              </div>
-
-              {/* Depósito */}
-              <div style={{background:'#fef8ec',border:'1px solid #e8d5a3',borderRadius:10,padding:16,marginBottom:16}}>
-                <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13,fontWeight:500,color:'#7a5100',marginBottom:depOk?14:0,userSelect:'none'}}>
-                  <input type="checkbox" checked={depOk} onChange={e=>setDepOk(e.target.checked)}
-                    style={{accentColor:'#7a5100',width:15,height:15,cursor:'pointer'}}/>
-                  Se realizó depósito hoy
-                </label>
-                {depOk && (
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10}}>
-                    {inp('dm','Monto depositado')}
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858'}}>Banco</label>
-                      <select value={form.db} onChange={e=>setForm({...form,db:e.target.value})}
-                        style={{fontFamily:'inherit',fontSize:13,padding:'8px 11px',border:'1px solid #e3e1d8',borderRadius:7,background:'#fff'}}>
-                        <option value=''>Seleccionar...</option>
-                        {['Banco de Chile','Itaú','Scotiabank','Santander','BCI','Banco Estado'].map(b=><option key={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    {inp('dc','Comprobante (opc.)','text','')}
                   </div>
-                )}
-                {depOk && inp('do_','Nota del depósito (opc.)','text','ej: incluye sábado y domingo')}
-              </div>
-
-              {/* Gastos */}
-              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:16,marginBottom:16}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,paddingBottom:8,borderBottom:'1px solid #e3e1d8'}}>
-                  <span style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858'}}>Gastos del local</span>
-                  <span style={{fontSize:11,color:'#9b9880',fontFamily:'DM Mono,monospace',background:'#f4f3ef',padding:'2px 10px',borderRadius:20}}>{fmt(tg)}</span>
-                </div>
-                {gastos.map((g,i)=>(
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 120px 34px',gap:8,marginBottom:8,alignItems:'end'}}>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858'}}>Descripción</label>
-                      <input value={g.desc} onChange={e=>{const ng=[...gastos];ng[i]={...ng[i],desc:e.target.value};setGastos(ng)}}
-                        placeholder="ej: escoba" style={{fontFamily:'inherit',fontSize:13,padding:'8px 11px',border:'1px solid #e3e1d8',borderRadius:7,width:'100%'}}/>
-                    </div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858'}}>Monto</label>
-                      <input type="number" value={g.monto} onChange={e=>{const ng=[...gastos];ng[i]={...ng[i],monto:parseFloat(e.target.value)||0};setGastos(ng)}}
-                        placeholder="0" style={{fontFamily:'DM Mono,monospace',fontSize:13,padding:'8px 11px',border:'1px solid #e3e1d8',borderRadius:7,width:'100%'}}/>
-                    </div>
-                    <button onClick={()=>setGastos(gastos.filter((_,j)=>j!==i))}
-                      style={{width:34,height:34,borderRadius:6,border:'1px solid #e3e1d8',background:'#fff',cursor:'pointer',fontSize:18,color:'#9b9880',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
-                  </div>
-                ))}
-                <button onClick={()=>setGastos([...gastos,{desc:'',monto:0}])}
-                  style={{fontFamily:'inherit',fontSize:12,padding:'7px 14px',borderRadius:6,border:'1px dashed #c8c5bb',background:'transparent',color:'#6a6858',cursor:'pointer',marginTop:4}}>
-                  + Agregar gasto
-                </button>
-              </div>
-
-              {/* Obs */}
-              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:16,marginBottom:20}}>
-                <div style={{fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#6a6858',marginBottom:8}}>Observaciones</div>
-                <textarea value={form.obs} onChange={e=>setForm({...form,obs:e.target.value})} rows={3}
-                  placeholder="Novedades, diferencias, incidentes..."
-                  style={{width:'100%',fontFamily:'inherit',fontSize:13,padding:'8px 11px',border:'1px solid #e3e1d8',borderRadius:7,resize:'vertical'}}/>
-              </div>
-
-              {/* Status */}
-              {dm>0 && (
-                <div style={{padding:'12px 16px',borderRadius:9,marginBottom:16,fontSize:13,fontWeight:500,
-                  background:Math.abs(difDep)<2000?'#e8f4ee':'#fde8e8',
-                  border:Math.abs(difDep)<2000?'1px solid #aed0b8':'1px solid #e8aaaa',
-                  color:Math.abs(difDep)<2000?'#2a5c3a':'#8b1a1a'}}>
-                  {Math.abs(difDep)<2000?'✓ Cuadratura OK':'⚠ Diferencia de '+fmt(Math.abs(difDep))+' — revisar antes de guardar'}
-                </div>
-              )}
-
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
-                <span style={{fontSize:11,color:'#9b9880'}}>Datos guardados en Supabase</span>
-                <div style={{display:'flex',gap:8}}>
-                  <button onClick={limpiar} style={{fontFamily:'inherit',fontSize:12,padding:'9px 18px',borderRadius:8,border:'1px solid #c8c5bb',background:'transparent',color:'#6a6858',cursor:'pointer'}}>Limpiar</button>
-                  <button onClick={guardar} disabled={saving} style={{fontFamily:'inherit',fontSize:13,fontWeight:600,padding:'11px 28px',borderRadius:8,border:'none',background:'#1a1916',color:'#fff',cursor:saving?'not-allowed':'pointer',opacity:saving?.5:1}}>
-                    {saving?'Guardando...':'Guardar cuadratura'}
-                  </button>
                 </div>
               </div>
-            </>
-          )}
+            )}
 
-          {tab==='historial' && (
-            <>
-              <div style={{fontSize:16,fontWeight:500,marginBottom:16}}>Historial del mes</div>
-              {registros.length===0 ? (
-                <div style={{textAlign:'center',padding:40,color:'#9b9880',fontSize:13,border:'1px dashed #e3e1d8',borderRadius:10}}>Sin registros este mes</div>
-              ) : (
-                <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,overflow:'hidden'}}>
-                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+            {/* RESUMEN */}
+            {activeSection==='resumen' && (
+              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>📋 {mesActivo}</div>
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                     <thead>
-                      <tr style={{background:'#f4f3ef'}}>
-                        {['Fecha','Sucursal','Venta Golan','Efectivo','Depósito','Dif.','Estado'].map(h=>(
-                          <th key={h} style={{textAlign:'left',padding:'8px 12px',fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:.5,color:'#9b9880',borderBottom:'1px solid #e3e1d8'}}>{h}</th>
-                        ))}
-                      </tr>
+                      <tr>{['Colaborador','Local','Rol','Venta neta','Bono'].map(h=>(
+                        <th key={h} style={{textAlign:'left',padding:'7px 10px',fontSize:10,fontWeight:600,
+                          textTransform:'uppercase',letterSpacing:.5,color:'#9b9880',
+                          borderBottom:'1px solid #e3e1d8',background:'#f0efe9'}}>{h}</th>
+                      ))}</tr>
                     </thead>
                     <tbody>
-                      {registros.map(r=>{
-                        const difD=r.deposito_monto-r.efectivo_total
-                        return <tr key={r.id} style={{borderBottom:'1px solid #e3e1d8'}}>
-                          <td style={{padding:'9px 12px',fontFamily:'DM Mono,monospace',fontSize:11}}>{r.fecha}</td>
-                          <td style={{padding:'9px 12px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:500,background:'#eef3fc',color:'#1a4a8a'}}>{SUCURSALES[r.sucursal]||r.sucursal}</span></td>
-                          <td style={{padding:'9px 12px',fontFamily:'DM Mono,monospace',color:'#2a5c3a'}}>{fmt(r.golan_total)}</td>
-                          <td style={{padding:'9px 12px',fontFamily:'DM Mono,monospace'}}>{fmt(r.efectivo_total)}</td>
-                          <td style={{padding:'9px 12px',fontFamily:'DM Mono,monospace'}}>{r.deposito_monto>0?fmt(r.deposito_monto)+(r.deposito_banco?' · '+r.deposito_banco:''):'—'}</td>
-                          <td style={{padding:'9px 12px',fontFamily:'DM Mono,monospace',color:r.deposito_monto>0?(Math.abs(difD)<2000?'#2a5c3a':'#c0392b'):'#9b9880'}}>{r.deposito_monto>0?(difD>=0?'+':'')+fmt(difD):'—'}</td>
-                          <td style={{padding:'9px 12px'}}><span style={{fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:500,background:r.deposito_monto>0&&Math.abs(difD)<2000?'#e8f4ee':r.deposito_monto===0?'#f4f3ef':'#fde8e8',color:r.deposito_monto>0&&Math.abs(difD)<2000?'#2a5c3a':r.deposito_monto===0?'#6a6858':'#8b1a1a'}}>{r.deposito_monto>0?(Math.abs(difD)<2000?'OK':'Revisar'):'Pendiente'}</span></td>
+                      {ventas.map((v,i)=>{
+                        const c = colaboradores.find(x=>x.id===v.colaborador_id)
+                        return <tr key={i}>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontWeight:500}}>{c?.nombre} {c?.apellido}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}>{v.local}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}><span style={{background:'#e4edf5',color:'#1c3a5e',padding:'2px 8px',borderRadius:20,fontSize:11}}>Auxiliar</span></td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontFamily:'DM Mono'}}>{fmt(v.venta_neta)}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontFamily:'DM Mono',color:'#2a5c3a',fontWeight:600}}>{fmt(v.bono)}</td>
                         </tr>
                       })}
+                      {bonosQF.map((q,i)=>{
+                        const c = colaboradores.find(x=>x.id===q.colaborador_id)
+                        return <tr key={'qf'+i}>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontWeight:500}}>{c?.nombre} {c?.apellido}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}>{q.local}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}><span style={{background:'#ede8f5',color:'#44277a',padding:'2px 8px',borderRadius:20,fontSize:11}}>QF titular</span></td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontFamily:'DM Mono'}}>—</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontFamily:'DM Mono',color:'#2a5c3a',fontWeight:600}}>{fmt(q.bono)}</td>
+                        </tr>
+                      })}
+                      {ventas.length===0&&bonosQF.length===0&&<tr><td colSpan={5} style={{padding:24,textAlign:'center',color:'#9b9880'}}>Sin datos para este período</td></tr>}
                     </tbody>
                   </table>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+
+            {/* COLABORADORES */}
+            {activeSection==='colaboradores' && (
+              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Colaboradores ({colaboradores.length})</div>
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                    <thead>
+                      <tr>{['Nombre','RUT','Local','Rol','Estado'].map(h=>(
+                        <th key={h} style={{textAlign:'left',padding:'7px 10px',fontSize:10,fontWeight:600,
+                          textTransform:'uppercase',letterSpacing:.5,color:'#9b9880',
+                          borderBottom:'1px solid #e3e1d8',background:'#f0efe9'}}>{h}</th>
+                      ))}</tr>
+                    </thead>
+                    <tbody>
+                      {colaboradores.map(c=>(
+                        <tr key={c.id}>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontWeight:500}}>{c.nombre} {c.apellido}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8',fontFamily:'DM Mono',fontSize:11,color:'#6a6858'}}>{c.rut||'—'}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}>{c.local||'—'}</td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}>
+                            <span style={{background:c.rol==='auxiliar'?'#e4edf5':'#ede8f5',color:c.rol==='auxiliar'?'#1c3a5e':'#44277a',padding:'2px 8px',borderRadius:20,fontSize:11,fontWeight:500}}>
+                              {c.rol==='auxiliar'?'Auxiliar':c.rol==='qf'?'QF titular':'QF compl.'}
+                            </span>
+                          </td>
+                          <td style={{padding:'8px 10px',borderBottom:'1px solid #e3e1d8'}}>
+                            <span style={{background:c.estado==='activo'?'#e5f0e8':'#fde8e8',color:c.estado==='activo'?'#2a5c3a':'#8b1a1a',padding:'2px 8px',borderRadius:20,fontSize:11,fontWeight:500}}>
+                              {c.estado==='activo'?'Activo':c.ausencia||'Inactivo'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* EXPORTAR */}
+            {activeSection==='exportar' && (
+              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Exportar — {mesActivo}</div>
+                <div style={{fontSize:13,color:'#6a6858',marginBottom:16}}>Resumen para la contadora</div>
+                <button onClick={()=>{
+                  let csv='Nombre,Apellido,RUT,Local,Rol,Venta Neta,Bono\n'
+                  ventas.forEach(v=>{const c=colaboradores.find(x=>x.id===v.colaborador_id);csv+=`"${c?.nombre}","${c?.apellido}","${c?.rut||''}","${v.local}","Auxiliar",${v.venta_neta},${v.bono}\n`})
+                  bonosQF.forEach(q=>{const c=colaboradores.find(x=>x.id===q.colaborador_id);csv+=`"${c?.nombre}","${c?.apellido}","${c?.rut||''}","${q.local}","QF titular","",${q.bono}\n`})
+                  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download=`Reporte_${mesActivo}.csv`;a.click()
+                }} style={{background:'#1c3a5e',color:'#fff',border:'none',padding:'9px 18px',borderRadius:6,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>
+                  ⬇ Descargar CSV
+                </button>
+              </div>
+            )}
+
+            {/* AJUSTES */}
+            {activeSection==='ajustes' && (
+              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:'16px 18px'}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>⚙️ Ajustes</div>
+                <div style={{fontSize:13,color:'#6a6858',marginBottom:8}}>Base de datos: Supabase ✓</div>
+                <div style={{fontSize:13,color:'#6a6858'}}>Colaboradores: {colaboradores.length} | Períodos: {periodos.length}</div>
+              </div>
+            )}
+
+            {activeSection==='desempeno' && (
+              <div style={{background:'#fff',border:'1px solid #e3e1d8',borderRadius:10,padding:40,textAlign:'center'}}>
+                <div style={{fontSize:32,marginBottom:12}}>📈</div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>Desempeño</div>
+                <div style={{fontSize:13,color:'#6a6858'}}>Este módulo se construirá en la próxima actualización.</div>
+              </div>
+            )}
+
+          </div>
+        </main>
       </div>
     </>
   )
