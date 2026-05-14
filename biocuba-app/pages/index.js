@@ -100,8 +100,8 @@ export default function Home() {
 
   // Módulos externos (páginas propias)
   const navModulos = [
-    {href:'/cuadratura', label:'Cuadratura de caja', icon:'💰', badge:'Maipú · SB · Prov.'},
-    {href:'/bienestar', label:'Bienestar Municipal', icon:'🏥', badge:'Maipú', soon:false},
+    {href:'/cuadratura', label:'Cuadratura de caja', icon:'💰'},
+    {href:'/bienestar', label:'Bienestar Municipal', icon:'🏥', soon:false},
     {href:'/dashboard-financiero', label:'Dashboard Chipax', icon:'📊', soon:true},
     {href:'/compras', label:'Compras', icon:'🛒', soon:true},
   ]
