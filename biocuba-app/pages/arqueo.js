@@ -101,6 +101,7 @@ export default function Arqueo() {
     setSession(s)
     cargarHistorial(s)
     verificarArqueoHoy(s)
+    cargarDepositos(s)
     if(s.convenios) cargarConvenios(fecha)
     cargarDifPendientes(s)
   },[])
@@ -119,6 +120,12 @@ export default function Arqueo() {
   }
 
   const [arqueoHoy, setArqueoHoy] = useState(null)
+
+  async function cargarDepositos(s){
+    const mesActual = new Date().toISOString().slice(0,7)
+    const {data} = await supabase.from('depositos').select('*').eq('sucursal_id',s.sucursal).gte('fecha_dep',mesActual+'-01').lte('fecha_dep',mesActual+'-31').order('fecha_dep',{ascending:false})
+    setDepositos(data||[])
+  }
 
   async function verificarArqueoHoy(s){
     const {data} = await supabase.from('arqueos').select('id,ef_total,golan').eq('sucursal_id',s.sucursal).eq('fecha',hoy()).single()
@@ -259,6 +266,21 @@ export default function Arqueo() {
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
       if(error){ console.error('Supabase error:', error); throw new Error(error.message||'Error al guardar en Supabase') }
       localStorage.removeItem(BORRADOR_KEY)
+      // Crear deposito pendiente automatico con el efectivo neto
+      if(efNeto>0){
+        await supabase.from('depositos').upsert({
+          id: 'dep_'+String(fecha)+'_'+String(session.sucursal),
+          sucursal_id: session.sucursal,
+          fecha_dep: fecha,
+          banco: '',
+          monto: efNeto,
+          obs: 'Efectivo arqueo del dia',
+          pendiente: true,
+          confirmado: false,
+          ts: Date.now()
+        },{onConflict:'id'})
+        cargarDepositos(session)
+      }
       setGuardado(true)
       cargarHistorial(session)
       setTimeout(()=>setGuardado(false),3000)
@@ -653,31 +675,66 @@ export default function Arqueo() {
             </div>
             {depTab==='pendientes'&&(
               <div>
-                {depositos.length===0?<div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos pendientes</div>:
-                depositos.map((d,i)=>(
-                  <div key={d.id||i} style={{...sec,marginBottom:10}}>
-                    <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
-                      <div><label style={lbl}>Fecha</label><input type="date" value={d.fecha||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],fecha:e.target.value};setDepositos(v)}} style={{...inp,width:130}} /></div>
-                      <div><label style={lbl}>Banco</label><input value={d.banco||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],banco:e.target.value};setDepositos(v)}} placeholder="ej: BancoEstado" style={inp} /></div>
-                      <div><label style={lbl}>Monto</label><input type="number" value={d.monto||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],monto:e.target.value};setDepositos(v)}} placeholder="0" style={inp} /></div>
-                      <div><label style={lbl}>Observacion</label><input value={d.obs||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],obs:e.target.value};setDepositos(v)}} placeholder="opcional" style={inp} /></div>
-                      <button onClick={()=>setDepositos(depositos.filter((_,j)=>j!==i))} style={{padding:'9px 10px',borderRadius:8,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',cursor:'pointer',alignSelf:'flex-end'}}>x</button>
+                {depositos.filter(d=>!d.confirmado).length===0?
+                  <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos pendientes. Se generan automaticamente al guardar el arqueo diario.</div>:
+                  depositos.filter(d=>!d.confirmado).map((dep,i)=>(
+                    <div key={dep.id||i} style={{background:'#fff',border:'1px solid var(--abdr)',borderRadius:12,padding:16,marginBottom:10}}>
+                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
+                        <div>
+                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>FECHA</div>
+                          <div style={{fontSize:13,fontWeight:500}}>{dep.fecha_dep}</div>
+                        </div>
+                        <div>
+                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>BANCO</div>
+                          <input value={dep.banco||''} onChange={async e=>{
+                            const nuevos=[...depositos]
+                            nuevos[i]={...nuevos[i],banco:e.target.value}
+                            setDepositos(nuevos)
+                            await supabase.from('depositos').update({banco:e.target.value}).eq('id',dep.id)
+                          }} placeholder="ej: BancoEstado" style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                        </div>
+                        <div>
+                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
+                          <input type="number" value={dep.monto||''} onChange={async e=>{
+                            const nuevos=[...depositos]
+                            nuevos[i]={...nuevos[i],monto:parseFloat(e.target.value)||0}
+                            setDepositos(nuevos)
+                            await supabase.from('depositos').update({monto:parseFloat(e.target.value)||0}).eq('id',dep.id)
+                          }} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--mono)',fontWeight:600}} />
+                        </div>
+                        <div>
+                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>OBSERVACION</div>
+                          <input value={dep.obs||''} onChange={async e=>{
+                            const nuevos=[...depositos]
+                            nuevos[i]={...nuevos[i],obs:e.target.value}
+                            setDepositos(nuevos)
+                            await supabase.from('depositos').update({obs:e.target.value}).eq('id',dep.id)
+                          }} placeholder="opcional" style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                        </div>
+                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                          <button onClick={async()=>{
+                            if(!dep.banco){alert('Ingresa el banco antes de confirmar');return}
+                            if(!confirm('Confirmar deposito de '+fmt(dep.monto)+' en '+dep.banco+'?'))return
+                            await supabase.from('depositos').update({confirmado:true,fecha_confirmacion:new Date().toISOString().split('T')[0]}).eq('id',dep.id)
+                            cargarDepositos(session)
+                          }} style={{padding:'7px 12px',borderRadius:7,border:'none',background:'var(--green)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            Confirmar
+                          </button>
+                          <button onClick={async()=>{
+                            if(!confirm('Eliminar este deposito pendiente?'))return
+                            await supabase.from('depositos').delete().eq('id',dep.id)
+                            cargarDepositos(session)
+                          }} style={{padding:'7px 12px',borderRadius:7,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <button onClick={agregarDeposito} style={{padding:'8px 16px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13,marginBottom:16}}>+ Agregar deposito</button>
-                {depositos.length>0&&(
-                  <div style={{display:'flex',justifyContent:'flex-end'}}>
-                    <button onClick={async()=>{
-                      for(const d of depositos.filter(x=>x.monto)){
-                        await supabase.from('depositos').upsert({id:String(d.id),sucursal_id:session.sucursal,fecha_dep:d.fecha||hoy(),banco:d.banco,monto:parseFloat(d.monto)||0,obs:d.obs},{onConflict:'id'})
-                      }
-                      alert('Depositos guardados correctamente')
-                    }} style={{padding:'10px 24px',borderRadius:9,border:'none',background:'var(--green)',color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer'}}>
-                      Guardar Depositos
-                    </button>
-                  </div>
-                )}
+                  ))
+                }
+                <button onClick={()=>setDepositos([...depositos,{id:'dep_nuevo_'+Date.now(),sucursal_id:session?.sucursal,fecha_dep:hoy(),banco:'',monto:'',obs:'',pendiente:true,confirmado:false,nuevo:true}])} style={{padding:'8px 16px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13,marginTop:10}}>
+                  + Agregar deposito manual
+                </button>
               </div>
             )}
             {depTab==='historial'&&(
