@@ -57,7 +57,9 @@ export default function Arqueo() {
     if(b){
       try{
         const d = JSON.parse(b)
-        if(d.fecha && confirm('Hay un arqueo en borrador del '+d.fecha+'. Deseas recuperarlo?')){
+        // Solo mostrar si tiene datos reales (billetes o monto)
+        const tieneDatos = d.billetes1 && Object.keys(d.billetes1).length>0
+        if(d.fecha && tieneDatos && confirm('Hay un arqueo en borrador del '+d.fecha+'. Deseas recuperar billetes, SumUp, transferencias, CxC y gastos? (El CSV de Golan hay que volver a subirlo)')){
           if(d.fecha) setFecha(d.fecha)
           if(d.billetes1) setBilletes1(d.billetes1)
           if(d.billetes2) setBilletes2(d.billetes2)
@@ -75,7 +77,7 @@ export default function Arqueo() {
   // Guardar borrador cada vez que cambia algo
   useEffect(()=>{
     if(!fecha) return
-    const b = {fecha,billetes1,billetes2,sumupReal,transfReal,obs,cxc,gastos,devs}
+    const b = {fecha,billetes1,billetes2,sumupReal,transfReal,obs,cxc,gastos,devs,ts:Date.now()}
     localStorage.setItem(BORRADOR_KEY, JSON.stringify(b))
   },[fecha,billetes1,billetes2,sumupReal,transfReal,obs,cxc,gastos,devs])
   
@@ -231,7 +233,7 @@ export default function Arqueo() {
     setGuardando(true)
     try {
       const payload = {
-        id: fecha+'_'+session.sucursal,
+        id: String(fecha)+'_'+String(session.sucursal),
         fecha, sucursal_id: session.sucursal,
         usuario_nombre: session.nombre,
         golan,
@@ -247,7 +249,7 @@ export default function Arqueo() {
         updated_at: new Date().toISOString()
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
-      if(error) throw error
+      if(error){ console.error('Supabase error:', error); throw new Error(error.message||'Error al guardar en Supabase') }
       localStorage.removeItem(BORRADOR_KEY)
       setGuardado(true)
       cargarHistorial(session)
