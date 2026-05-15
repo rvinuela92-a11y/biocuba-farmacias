@@ -408,7 +408,6 @@ export default function Arqueo() {
                   ))}
                 </div>
                 {(golanCargado1||golanCargado2)&&(
-                  <div>
                     {/* Desglose por caja */}
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
                       {[1,2].filter(n=>golanCajas['c'+n]).map(n=>{
