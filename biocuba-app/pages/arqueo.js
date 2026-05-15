@@ -110,24 +110,49 @@ export default function Arqueo() {
       const buf = await file.arrayBuffer()
       const txt = new TextDecoder('iso-8859-1').decode(buf)
       const lines = txt.replace(/\r/g,'').split('\n').filter(l=>l.trim())
+      const pm = s => {
+        s = (s||'').toString().replace(/[$]/g,'').replace(/\./g,'').replace(/,/g,'').replace(/[()]/g,'').trim()
+        return Math.abs(parseFloat(s)||0)
+      }
+      const inc = (s,kw) => s.toLowerCase().includes(kw.toLowerCase())
       lines.forEach(line=>{
         const c = line.split(',')
-        if(c.length<16) return
-        const pm = s => parseFloat((s||'').replace(/[^0-9.-]/g,''))||0
-        const tipo = (c[2]||c[5]||'').trim()
-        const monto = pm(c[4])||pm(c[8])||pm(c[9])
-        if(monto<=0) return
-        totalVentas += monto
-        if(tipo==='Efectivo'||tipo==='Efectivo Neto') totalEf+=monto
-        else if(tipo==='Efectivo Bruto') totalEfBruto+=monto
-        else if(tipo==='Debito'||tipo==='Débito') totalDeb+=monto
-        else if(tipo==='Credito'||tipo==='Crédito') totalCred+=monto
-        else if(tipo==='Transferencia') totalTransf+=monto
-        else if(tipo==='Cheque 30 dias'||tipo==='Cheque 30 días') totalCheque+=monto
-        else if(tipo==='Devolucion'||tipo==='Devolución') totalDev+=monto
-        const vid=(c[14]||'').trim()
-        const vnombre=(c[15]||'').trim()
-        if(vid&&vnombre) vendMap[vid]={id:vid,nombre:vnombre}
+        // Vendedores: id numerico seguido de nombre
+        c.forEach((col,i)=>{
+          const v = col.trim()
+          if(v && /^\d+$/.test(v) && i+1<c.length){
+            const nombre = c[i+1].trim()
+            if(nombre.length>2 && !/^\d/.test(nombre) && !inc(nombre,'tipo') && !inc(nombre,'total') && !inc(nombre,'monto') && !inc(nombre,'cantidad') && !inc(nombre,'cierre') && !inc(nombre,'apertura') && !inc(nombre,'informe')){
+              vendMap[v]={id:v,nombre}
+            }
+          }
+        })
+        // Tipo en col[2] - formato reporte Golan
+        const tipo2 = (c[2]||'').trim()
+        if(tipo2 && !inc(tipo2,'total') && !inc(tipo2,'tipo')){
+          const m = pm(c[8])
+          if(m>0){
+            if(inc(tipo2,'efectivo') && !inc(line,'devoluci')) totalEf=Math.max(totalEf,m)
+            else if(inc(tipo2,'cheque')) totalCheque=Math.max(totalCheque,m)
+            else if(inc(tipo2,'tarjeta') && inc(tipo2,'b')) totalDeb=Math.max(totalDeb,m)
+            else if(inc(tipo2,'tarjeta') && inc(tipo2,'c')) totalCred=Math.max(totalCred,m)
+            else if(inc(tipo2,'transferencia')) totalTransf=Math.max(totalTransf,m)
+          }
+        }
+        // Efectivo neto desde Totales Tipo Pago col[12]
+        const tipo12 = (c[12]||'').trim()
+        if(inc(tipo12,'efectivo')){
+          const m = pm(c[16])
+          if(m>0) totalEf=m
+        }
+        // Devoluciones
+        if(inc(line,'devoluci') && inc(line,'efectivo')){
+          for(let i=4;i<c.length;i++){ const m=pm(c[i]); if(m>0&&m<500000){totalDev=Math.max(totalDev,m);break} }
+        }
+        // Total ventas
+        if(inc(line,'total ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
+          c.forEach(col=>{ const m=pm(col); if(m>500000) totalVentas=Math.max(totalVentas,m) })
+        }
       })
     }
     setGolan(prev=>({
