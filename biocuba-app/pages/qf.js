@@ -44,10 +44,15 @@ export default function QF() {
         supabase.from('magistral_ventas').select('monto').eq('sucursal_id',suc).eq('mes',mesActual),
       ])
       const arqueoHoy = rArqueo.data
-      const tB = (rB.data||[]).reduce((s,v)=>s+v.monto,0)
+      // Depositos pendientes no confirmados
+    const mesActual = new Date().toISOString().slice(0,7)
+    const {data:deps} = await supabase.from('depositos').select('monto,confirmado').eq('sucursal_id',s.sucursal).gte('fecha_dep',mesActual+'-01')
+    const depPendiente = (deps||[]).filter(d=>!d.confirmado).reduce((s,d)=>s+(d.monto||0),0)
+
+    const tB = (rB.data||[]).reduce((s,v)=>s+v.monto,0)
       const tS = (rS.data||[]).reduce((s,v)=>s+v.monto,0)
       const tM = (rM.data||[]).reduce((s,v)=>s+v.monto,0)
-      setStats({ arqueoHoy, tB, tS, tM })
+      setStats({ arqueoHoy, tB, tS, tM, depPendiente })
       const als = []
       if (!arqueoHoy && new Date().getHours()>=14) als.push({tipo:'amber',msg:'📋 El arqueo de hoy aún no ha sido registrado'})
       else if (arqueoHoy && (arqueoHoy.dif_ef||0)!==0) als.push({tipo:'red',msg:`⚠ Diferencia en efectivo hoy: ${fmt(arqueoHoy.dif_ef)}`})
@@ -96,7 +101,7 @@ export default function QF() {
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
           {[
             {lbl:'Venta Golan hoy', val:stats.arqueoHoy?fmt(stats.arqueoHoy.golan?.totalVentas||0):'—', color:'var(--blue)'},
-            {lbl:'Efectivo a depositar', val:stats.arqueoHoy?fmt(stats.arqueoHoy.ef_neto||0):'—', color:'var(--green)'},
+            {lbl:'Efectivo a depositar', val:stats.depPendiente!==undefined?fmt(stats.depPendiente):'—', color:'var(--green)'},
             {lbl:'Convenios del día', val:fmt((stats.tB||0)+(stats.tS||0)), color:'var(--amber)'},
             {lbl:'Magistral este mes', val:fmt(stats.tM||0), color:'var(--blue)'},
           ].map((k,i)=>(
