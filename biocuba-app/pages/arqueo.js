@@ -426,7 +426,7 @@ export default function Arqueo() {
                         )
                       })}
                     </div>
-                  <div style={{background:'var(--s2)',borderRadius:10,padding:16}}>
+                    <div style={{background:'var(--s2)',borderRadius:10,padding:16}}>
                     {[
                       ['Efectivo (neto)',golan.ef,'var(--tx)'],
                       ['Tarjeta Debito',golan.deb,'var(--tx)'],
@@ -450,6 +450,7 @@ export default function Arqueo() {
                         {golan.vendedores.map(v=><div key={v.id} style={{fontSize:12,color:'var(--t2)'}}>{v.nombre}</div>)}
                       </div>
                     )}
+                  </div>
                   </div>
                 )}
               </div>
