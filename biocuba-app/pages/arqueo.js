@@ -210,6 +210,10 @@ export default function Arqueo() {
   // Calculos
   const ef1 = BILLETES.reduce((s,b)=>s+(parseInt(billetes1[b]||0)*b),0)
   const ef2 = BILLETES.reduce((s,b)=>s+(parseInt(billetes2[b]||0)*b),0)
+  const dep1 = ef1
+  const dep2 = ef2
+  const dep1 = ef1
+  const dep2 = ef2
   const efTotal = ef1+ef2
   const efNeto = efTotal
   const difEf = efNeto - golan.ef

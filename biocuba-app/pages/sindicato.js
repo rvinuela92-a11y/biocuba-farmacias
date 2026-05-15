@@ -10,6 +10,7 @@ const mes = () => new Date().toISOString().slice(0,7)
 export default function Sindicato() {
   const router = useRouter()
   const [session, setSession] = useState(null)
+  const [tab, setTab] = useState('ventas')
   const [ventas, setVentas] = useState([])
   const [historialVentas, setHistorialVentas] = useState([])
   const [busqHist, setBusqHist] = useState('')
