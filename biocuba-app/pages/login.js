@@ -36,7 +36,12 @@ export default function Login() {
   }
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:20,background:'var(--bg)'}}>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <title>BioCuba Farmacias</title>
+      </Head>
+      <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:20,background:'var(--bg)'}}>
       <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:16,padding:32,width:'100%',maxWidth:400}}>
         <div style={{textAlign:'center',marginBottom:24}}>
           <img src="/logo.jpg" alt="BioCuba" style={{height:56,width:'auto'}} />
