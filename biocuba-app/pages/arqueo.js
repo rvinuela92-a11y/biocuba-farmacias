@@ -886,6 +886,12 @@ export default function Arqueo() {
                               setCxc(a.cxc||[])
                               setGastos(a.gastos||[])
                               setDevs(a.devs||[])
+                              // Restaurar golan desde los datos guardados
+                              if(a.golan) setGolan(a.golan)
+                              setGolanCargado1(!!a.golan)
+                              // Restaurar billetes desde cajas guardadas
+                              if(a.cajas?.c1?.billetes) setBilletes1(a.cajas.c1.billetes)
+                              if(a.cajas?.c2?.billetes) setBilletes2(a.cajas.c2.billetes)
                               setTab('ingresar')
                               window.scrollTo(0,0)
                             }} style={{padding:'3px 8px',borderRadius:6,border:'1px solid var(--bdr)',background:'var(--s2)',color:'var(--t2)',fontSize:11,cursor:'pointer'}}>
