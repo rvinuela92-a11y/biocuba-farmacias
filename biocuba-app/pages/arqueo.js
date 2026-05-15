@@ -17,7 +17,8 @@ export default function Arqueo() {
   const router = useRouter()
   const [session, setSession] = useState(null)
   const [tab, setTab] = useState('ingresar')
-  const [fecha, setFecha] = useState(hoy())
+  const ayer = () => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0] }
+  const [fecha, setFecha] = useState(ayer())
   
   // Golan
   const [golan, setGolan] = useState({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]})
@@ -268,6 +269,12 @@ export default function Arqueo() {
         motivo: difEf!==0?{causa:difCausa,resp:difResp,det:difDet,descontar:difDescontar}:null,
         obs, ts: Date.now(),
         updated_at: new Date().toISOString()
+      }
+      // Si se edito y cambio la fecha, borrar el arqueo original
+      const idOriginal = window._editandoArqueoId
+      if(idOriginal && idOriginal !== payload.id){
+        await supabase.from('arqueos').delete().eq('id', idOriginal)
+        window._editandoArqueoId = null
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
       if(error){ console.error('Supabase error:', error); throw new Error(error.message||'Error al guardar en Supabase') }
@@ -878,6 +885,8 @@ export default function Arqueo() {
                             <button onClick={()=>{
                               if(!confirm('Editar el arqueo del '+a.fecha+'? Podras corregir los datos y volver a guardar.')) return
                               setFecha(a.fecha)
+                              // Guardar id original para borrarlo si cambia la fecha
+                              window._editandoArqueoId = a.id
                               setObs(a.obs||'')
                               setSumupReal(String(a.sumup||''))
                               setTransfReal(String(a.transf_real||''))
