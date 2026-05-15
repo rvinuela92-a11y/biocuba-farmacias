@@ -27,8 +27,6 @@ export default function Arqueo() {
   // Cajas
   const [billetes1, setBilletes1] = useState({})
   const [billetes2, setBilletes2] = useState({})
-  const [fondo1, setFondo1] = useState('')
-  const [fondo2, setFondo2] = useState('')
   
   // SumUp y transferencias
   const [sumupReal, setSumupReal] = useState('')
@@ -233,7 +231,7 @@ export default function Arqueo() {
         fecha, sucursal_id: session.sucursal,
         usuario_nombre: session.nombre,
         golan,
-        cajas: {c1:{billetes:billetes1,fondo:fondo1n,total:ef1,dep:dep1},c2:{billetes:billetes2,fondo:fondo2n,total:ef2,dep:dep2}},
+        cajas: {c1:{billetes:billetes1,total:ef1},c2:{billetes:billetes2,total:ef2}},
         ef_total: efTotal, ef_neto: efNeto, dif_ef: difEf,
         sumup: parseFloat(sumupReal)||0,
         transf_real: parseFloat(transfReal)||0,
