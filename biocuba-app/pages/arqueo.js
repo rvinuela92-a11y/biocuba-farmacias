@@ -42,6 +42,8 @@ export default function Arqueo() {
   const [devs, setDevs] = useState([])
   
   // Motivo diferencia
+  const [arrastre, setArrastre] = useState(0)
+  const [arrastreObs, setArrastreObs] = useState('')
   const [difCausa, setDifCausa] = useState('')
   const [difResp, setDifResp] = useState('')
   const [difDet, setDifDet] = useState('')
@@ -234,6 +236,7 @@ export default function Arqueo() {
   const efTotal = ef1+ef2
   const efNeto = efTotal
   const difEf = efNeto - golan.ef
+  const difNeta = difEf + (parseInt(arrastre)||0)
   const totalConv = convBienestar+convSindicato
   const difConv = golan.cheque - totalConv
   const totalCxC = cxc.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)
@@ -259,6 +262,9 @@ export default function Arqueo() {
         gastos: gastos.filter(g=>g.monto),
         cxc: cxc.filter(c=>c.monto),
         devs: devs.filter(d=>d.monto),
+        arrastre: parseInt(arrastre)||0,
+        arrastre_obs: arrastreObs,
+        dif_neta: difNeta,
         motivo: difEf!==0?{causa:difCausa,resp:difResp,det:difDet,descontar:difDescontar}:null,
         obs, ts: Date.now(),
         updated_at: new Date().toISOString()
@@ -611,6 +617,33 @@ export default function Arqueo() {
               ))}
               <button onClick={()=>setDevs([...devs,{id:Date.now(),motivo:'',monto:''}])} style={{padding:'7px 14px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>+ Agregar devolucion</button>
             </div>
+
+            {/* ARRASTRE DE DIA ANTERIOR */}
+            {difEf!==0&&efTotal>0&&(
+              <div style={{background:'#fff',border:'1px solid var(--bbdr)',borderRadius:12,padding:20,marginBottom:14}}>
+                <div style={{fontSize:14,fontWeight:600,color:'var(--blue)',marginBottom:6}}>Arrastre de dia anterior</div>
+                <div style={{fontSize:12,color:'var(--t2)',marginBottom:12}}>Si la diferencia de hoy se explica por un sobrante o faltante del dia anterior, ingresal aqui para netear y resolver la alerta.</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:12,marginBottom:10}}>
+                  <div>
+                    <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--t2)',display:'block',marginBottom:4}}>Monto arrastre</label>
+                    <input type="number" value={arrastre} onChange={e=>setArrastre(e.target.value)} placeholder="ej: -5000 si faltaba ayer" style={{fontSize:14,padding:'9px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--mono)',background:'#fff'}} />
+                    <div style={{fontSize:10,color:'var(--t3)',marginTop:4}}>Positivo si sobro ayer, negativo si falto</div>
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--t2)',display:'block',marginBottom:4}}>Explicacion</label>
+                    <input value={arrastreObs} onChange={e=>setArrastreObs(e.target.value)} placeholder="ej: sobrante del 14/05 que se recupero hoy" style={{fontSize:14,padding:'9px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)',background:'#fff'}} />
+                  </div>
+                </div>
+                {arrastre!==0&&(
+                  <div style={{padding:'10px 14px',borderRadius:8,background:difNeta===0?'var(--gbg)':'var(--rbg)',border:'1px solid '+(difNeta===0?'var(--gbdr)':'var(--rbdr)'),display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontSize:13,fontWeight:600,color:difNeta===0?'var(--green)':'var(--red)'}}>
+                      {difNeta===0?'Diferencia neta: CERO — alerta resuelta':'Diferencia neta: '+fmt(difNeta)}
+                    </span>
+                    <span style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:difNeta===0?'var(--green)':'var(--red)'}}>{fmt(difNeta)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* MOTIVO DIFERENCIA */}
             {difEf!==0&&efTotal>0&&(
