@@ -180,11 +180,10 @@ export default function Arqueo() {
             else if(inc(tipo12,'transfer')) totalTransf=m
           }
         }
-        // DEVOLUCIONES: linea donde col[1]='Efectivo' (seccion Devoluciones del CSV)
-        // Formato: ,Efectivo,,,3,,,$90.920,,,,,Efectivo,,,,$452.020,
-        const tipo1 = (c[1]||'').trim()
-        if(inc(tipo1,'efectivo') && pm(c[7])>0 && !inc((c[2]||''),'efectivo')){
-          totalDev = Math.max(totalDev, pm(c[7]))
+        // DEVOLUCIONES: Total Devoluciones en col[24] (formato con parentesis = negativo)
+        // Formato: ,,,,,,,,,,,,,,,,,,,,Total Devoluciones,,,,$35.710,
+        if(inc(line,'Total Devoluciones') || inc(line,'total devoluciones')){
+          c.forEach(col=>{ const m=pm(col); if(m>0&&m<500000) totalDev=Math.max(totalDev,m) })
         }
         // TOTAL VENTAS: col[24]
         if(inc(line,'Total Ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
