@@ -45,7 +45,6 @@ export default function QF() {
       ])
       const arqueoHoy = rArqueo.data
       // Depositos pendientes no confirmados
-    const mesActual = new Date().toISOString().slice(0,7)
     const {data:deps} = await supabase.from('depositos').select('monto,confirmado').eq('sucursal_id',s.sucursal).gte('fecha_dep',mesActual+'-01')
     const depPendiente = (deps||[]).filter(d=>!d.confirmado).reduce((s,d)=>s+(d.monto||0),0)
 
