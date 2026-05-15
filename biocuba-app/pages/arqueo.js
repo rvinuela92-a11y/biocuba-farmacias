@@ -145,9 +145,11 @@ export default function Arqueo() {
           const m = pm(c[16])
           if(m>0) totalEf=m
         }
-        // Devoluciones
-        if(inc(line,'devoluci') && inc(line,'efectivo')){
-          for(let i=4;i<c.length;i++){ const m=pm(c[i]); if(m>0&&m<500000){totalDev=Math.max(totalDev,m);break} }
+        // Devoluciones en efectivo — col[7] o col[8] en seccion Devoluciones
+        if(inc(line,'devoluci') && !inc(line,'total') && !inc(line,'tipo')){
+          for(let i=3;i<Math.min(c.length,10);i++){
+            const m=pm(c[i]); if(m>0&&m<500000){totalDev=Math.max(totalDev,m);break}
+          }
         }
         // Total ventas
         if(inc(line,'total ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
