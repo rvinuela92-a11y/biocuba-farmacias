@@ -269,6 +269,7 @@ export default function Bienestar() {
             <button onClick={exportarExcel} style={{padding:'13px 28px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontSize:15,fontWeight:600}}>⬇ Descargar Planilla Excel (.xlsx)</button>
             <div style={{fontSize:11,color:'var(--t3)',marginTop:10}}>Formato listo para enviar a la Municipalidad de Maipú</div>
           </div>
+        )}
 
         {/* TAB HISTORIAL */}
         {tab==='historial'&&(
@@ -301,7 +302,6 @@ export default function Bienestar() {
               </div>
             </div>
           </div>
-        )}
         )}
       </main>
     </>
