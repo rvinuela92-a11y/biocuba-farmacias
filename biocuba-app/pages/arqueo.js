@@ -22,6 +22,7 @@ export default function Arqueo() {
   
   // Golan
   const [golan, setGolan] = useState({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]})
+  const [golanCajas, setGolanCajas] = useState({c1:null,c2:null})
   const [golanCargado1, setGolanCargado1] = useState(false)
   const [golanCargado2, setGolanCargado2] = useState(false)
   
@@ -215,6 +216,9 @@ export default function Arqueo() {
     }
     // Si no encontramos efectivo neto, usar bruto
     if(totalEf===0) totalEf=totalEfBruto
+    // Guardar datos de esta caja por separado
+    const datosCaja = {ef:totalEf,efBruto:totalEfBruto,deb:totalDeb,cred:totalCred,transf:totalTransf,cheque:totalCheque,dev:totalDev,totalVentas,vendedores:Object.values(vendMap)}
+    setGolanCajas(prev=>({...prev,['c'+caja]:datosCaja}))
     setGolan(prev=>({
       ef: prev.ef+totalEf,
       efBruto: prev.efBruto+totalEfBruto,
@@ -404,6 +408,24 @@ export default function Arqueo() {
                   ))}
                 </div>
                 {(golanCargado1||golanCargado2)&&(
+                  <div>
+                    {/* Desglose por caja */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                      {[1,2].filter(n=>golanCajas['c'+n]).map(n=>{
+                        const c=golanCajas['c'+n]
+                        return (
+                          <div key={n} style={{background:'var(--s2)',borderRadius:10,padding:12,border:'1px solid var(--bdr)'}}>
+                            <div style={{fontSize:12,fontWeight:600,color:'var(--blue)',marginBottom:8}}>Caja {n}</div>
+                            {[['Efectivo neto',c.ef],['Debito',c.deb],['Credito',c.cred],['Transferencia',c.transf],['Cheque 30 dias',c.cheque],['Devoluciones',c.dev],['Total',c.totalVentas]].filter(([,v])=>v>0).map(([l,v])=>(
+                              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',borderBottom:'1px solid var(--bdr)',fontSize:11}}>
+                                <span style={{color:l==='Total'?'var(--tx)':'var(--t2)',fontWeight:l==='Total'?600:400}}>{l}</span>
+                                <span style={{fontFamily:'var(--mono)',fontWeight:l==='Total'?700:500,color:l==='Devoluciones'?'var(--red)':l==='Total'?'var(--blue)':'var(--tx)'}}>${v.toLocaleString('es-CL')}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
                   <div style={{background:'var(--s2)',borderRadius:10,padding:16}}>
                     {[
                       ['Efectivo (neto)',golan.ef,'var(--tx)'],
