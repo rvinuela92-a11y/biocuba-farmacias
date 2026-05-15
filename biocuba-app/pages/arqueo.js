@@ -11,7 +11,7 @@ const BILLETES = [20000,10000,5000,2000,1000,500,100,50,10]
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const CATS_GASTO = {sencilla:'Fondo de cambio / Sencilla',limpieza:'Limpieza y Aseo',oficina:'Artículos de Oficina',mant_local:'Reparaciones y Mantención Local',mant_equipos:'Mantención de Equipos',otros:'Otros'}
-const CAUSAS_DIF = ['Error en medio de pago','Error en vuelto al cliente','Billete falso recibido','Gasto no registrado','Sencilla no registrada','Causa desconocida - investigar','Otro']
+const CAUSAS_DIF = ['Sobrante — vuelto menor al cliente','Sobrante — error en medio de pago','Sobrante — causa desconocida','Faltante — error en vuelto al cliente','Faltante — billete falso','Faltante — gasto no registrado','Faltante — sencilla no registrada','Faltante — causa desconocida','Otro']
 
 export default function Arqueo() {
   const router = useRouter()
@@ -648,8 +648,8 @@ export default function Arqueo() {
             {/* MOTIVO DIFERENCIA */}
             {difEf!==0&&efTotal>0&&(
               <div style={{...sec,border:'1px solid var(--rbdr)',background:'var(--rbg)'}}>
-                <div style={{fontSize:14,fontWeight:600,color:'var(--red)',marginBottom:6}}>Motivo de la Diferencia en Efectivo</div>
-                <div style={{fontSize:12,color:'var(--red)',marginBottom:12}}>Hay una diferencia de {fmt(difEf)}. Debes registrar el motivo antes de guardar.</div>
+                <div style={{fontSize:14,fontWeight:600,color:difEf>0?'var(--amber)':'var(--red)',marginBottom:6}}>{difEf>0?'Sobrante en Efectivo':'Faltante en Efectivo'}</div>
+                <div style={{fontSize:12,color:difEf>0?'var(--amber)':'var(--red)',marginBottom:12}}>Hay {difEf>0?'un sobrante':'un faltante'} de {fmt(Math.abs(difEf))}. Debes registrar el motivo antes de guardar.</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:10}}>
                   <div>
                     <label style={lbl}>Causa</label>
@@ -724,7 +724,7 @@ export default function Arqueo() {
                             nuevos[i]={...nuevos[i],banco:e.target.value}
                             setDepositos(nuevos)
                             await supabase.from('depositos').update({banco:e.target.value}).eq('id',dep.id)
-                          }} list="bancos-list" placeholder="Seleccionar banco..." style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                          }} list="bancos-list" placeholder="Seleccionar banco..." style={{fontSize:13,padding:"6px 10px",border:"1.5px solid var(--bdr)",borderRadius:7,outline:"none",width:"100%",fontFamily:"var(--font)"}} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
                         </div>
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
@@ -772,6 +772,9 @@ export default function Arqueo() {
                   <option value="Scotiabank" />
                   <option value="Banco Itaú" />
                 </datalist>
+                <div style={{marginTop:14,padding:'12px 16px',background:'var(--bbg)',border:'1px solid var(--bbdr)',borderRadius:10,fontSize:12,color:'var(--blue)'}}>
+                  Para agrupar varios dias en un deposito: selecciona los que vas a depositar juntos marcando el checkbox y luego confirmalos todos de una vez.
+                </div>
                 <button onClick={()=>setDepositos([...depositos,{id:'dep_nuevo_'+Date.now(),sucursal_id:session?.sucursal,fecha_dep:hoy(),banco:'',monto:'',obs:'',pendiente:true,confirmado:false,nuevo:true}])} style={{padding:'8px 16px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13,marginTop:10}}>
                   + Agregar deposito manual
                 </button>
