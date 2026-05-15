@@ -691,7 +691,7 @@ export default function Arqueo() {
                             nuevos[i]={...nuevos[i],banco:e.target.value}
                             setDepositos(nuevos)
                             await supabase.from('depositos').update({banco:e.target.value}).eq('id',dep.id)
-                          }} placeholder="ej: BancoEstado" style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                          }} list="bancos-list" placeholder="Seleccionar banco..." style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
                         </div>
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
@@ -732,14 +732,48 @@ export default function Arqueo() {
                     </div>
                   ))
                 }
+                <datalist id="bancos-list">
+                  <option value="Banco de Chile" />
+                  <option value="Banco Santander" />
+                  <option value="Banco BICE" />
+                  <option value="Scotiabank" />
+                  <option value="Banco Itaú" />
+                </datalist>
                 <button onClick={()=>setDepositos([...depositos,{id:'dep_nuevo_'+Date.now(),sucursal_id:session?.sucursal,fecha_dep:hoy(),banco:'',monto:'',obs:'',pendiente:true,confirmado:false,nuevo:true}])} style={{padding:'8px 16px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13,marginTop:10}}>
                   + Agregar deposito manual
                 </button>
               </div>
             )}
             {depTab==='historial'&&(
-              <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:16,color:'var(--t3)',textAlign:'center',fontSize:13}}>
-                Historial de depositos del mes — proximamente
+              <div>
+                <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,overflow:'hidden'}}>
+                  <div style={{overflowX:'auto'}}>
+                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                      <thead><tr style={{background:'var(--s2)'}}>
+                        {['Fecha','Banco','Monto','Observación','Estado'].map(h=>(
+                          <th key={h} style={{padding:'8px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {depositos.length===0?<tr><td colSpan={5} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin depósitos registrados este mes</td></tr>:
+                        depositos.map((d,i)=>(
+                          <tr key={d.id||i} style={{borderTop:'1px solid var(--bdr)',background:d.confirmado?'var(--gbg)':i%2===0?'#fff':'var(--s2)'}}>
+                            <td style={{padding:'8px 12px'}}>{d.fecha_dep}</td>
+                            <td style={{padding:'8px 12px',fontWeight:500}}>{d.banco||'—'}</td>
+                            <td style={{padding:'8px 12px',fontFamily:'var(--mono)',fontWeight:600,color:'var(--green)'}}>{fmt(d.monto)}</td>
+                            <td style={{padding:'8px 12px',color:'var(--t2)'}}>{d.obs||'—'}</td>
+                            <td style={{padding:'8px 12px'}}>
+                              {d.confirmado
+                                ?<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'var(--gbg)',color:'var(--green)'}}>Confirmado {d.fecha_confirmacion}</span>
+                                :<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'var(--abg)',color:'var(--amber)'}}>Pendiente</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -785,7 +819,7 @@ export default function Arqueo() {
               <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                   <thead><tr style={{background:'var(--s2)'}}>
-                    {['Fecha','Ventas Golan','Ef. Golan','Ef. Neto','Diferencia','SumUp','Guardado por','Estado'].map(h=>(
+                    {['Fecha','Ventas Golan','Ef. Golan','Ef. Neto','Diferencia','SumUp','Guardado por','Obs','Estado'].map(h=>(
                       <th key={h} style={{padding:'10px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
                     ))}
                   </tr></thead>
@@ -803,6 +837,7 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'OK'}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.sumup||0)}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)'}}>{a.usuario_nombre}</td>
+                          <td style={{padding:'8px 12px',color:'var(--t2)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.obs||'—'}</td>
                           <td style={{padding:'8px 12px'}}>
                             <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:dif!==0?'var(--rbg)':'var(--gbg)',color:dif!==0?'var(--red)':'var(--green)'}}>
                               {dif!==0?'Con diferencia':'Cuadrado'}
