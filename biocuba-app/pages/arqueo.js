@@ -123,6 +123,7 @@ export default function Arqueo() {
   }
 
   const [arqueoHoy, setArqueoHoy] = useState(null)
+  const [editandoId, setEditandoId] = useState(null)
 
   async function cargarDepositos(s){
     const mesActual = new Date().toISOString().slice(0,7)
@@ -271,10 +272,9 @@ export default function Arqueo() {
         updated_at: new Date().toISOString()
       }
       // Si se edito y cambio la fecha, borrar el arqueo original
-      const idOriginal = window._editandoArqueoId
-      if(idOriginal && idOriginal !== payload.id){
-        await supabase.from('arqueos').delete().eq('id', idOriginal)
-        window._editandoArqueoId = null
+      if(editandoId && editandoId !== payload.id){
+        await supabase.from('arqueos').delete().eq('id', editandoId)
+        setEditandoId(null)
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
       if(error){ console.error('Supabase error:', error); throw new Error(error.message||'Error al guardar en Supabase') }
@@ -886,7 +886,7 @@ export default function Arqueo() {
                               if(!confirm('Editar el arqueo del '+a.fecha+'? Podras corregir los datos y volver a guardar.')) return
                               setFecha(a.fecha)
                               // Guardar id original para borrarlo si cambia la fecha
-                              window._editandoArqueoId = a.id
+                              setEditandoId(a.id)
                               setObs(a.obs||'')
                               setSumupReal(String(a.sumup||''))
                               setTransfReal(String(a.transf_real||''))
@@ -898,6 +898,7 @@ export default function Arqueo() {
                               // Restaurar golan desde los datos guardados
                               if(a.golan) setGolan(a.golan)
                               setGolanCargado1(!!a.golan)
+                              setGolanCargado2(!!a.golan)
                               // Restaurar billetes desde cajas guardadas
                               if(a.cajas?.c1?.billetes) setBilletes1(a.cajas.c1.billetes)
                               if(a.cajas?.c2?.billetes) setBilletes2(a.cajas.c2.billetes)
