@@ -17,6 +17,8 @@ export default function Bienestar() {
   const [ventas, setVentas] = useState([])
   const [bloqueados, setBloqueados] = useState([])
   const [SOCIOS, setSOCIOS] = useState([])
+  const [historialVentas, setHistorialVentas] = useState([])
+  const [busqHist, setBusqHist] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [loading, setLoading] = useState(true)
   const [rutBloqueo, setRutBloqueo] = useState('')
@@ -30,6 +32,12 @@ export default function Bienestar() {
     cargarDatos()
     import('../lib/socios').then(m=>setSOCIOS(m.SOCIOS))
   },[])
+
+  async function cargarHistorial(s){
+    const mesActual = new Date().toISOString().slice(0,7)
+    const {data} = await supabase.from('bienestar_ventas').select('*').eq('sucursal_id',s.sucursal).order('fecha',{ascending:false}).limit(200)
+    setHistorialVentas(data||[])
+  }
 
   async function cargarDatos(){
     setLoading(true)
@@ -261,6 +269,39 @@ export default function Bienestar() {
             <button onClick={exportarExcel} style={{padding:'13px 28px',borderRadius:10,border:'none',background:'var(--green)',color:'#fff',fontSize:15,fontWeight:600}}>⬇ Descargar Planilla Excel (.xlsx)</button>
             <div style={{fontSize:11,color:'var(--t3)',marginTop:10}}>Formato listo para enviar a la Municipalidad de Maipú</div>
           </div>
+
+        {/* TAB HISTORIAL */}
+        {tab==='historial'&&(
+          <div>
+            <div style={{marginBottom:14}}>
+              <input value={busqHist} onChange={e=>setBusqHist(e.target.value)} placeholder="Buscar por nombre, RUT o folio..." style={{fontSize:14,padding:'9px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)',background:'#fff'}} />
+            </div>
+            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,overflow:'hidden'}}>
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                  <thead><tr style={{background:'var(--s2)'}}>
+                    {['Fecha','RUT','Nombre','Folio','Monto','Obs'].map(h=>(
+                      <th key={h} style={{padding:'8px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {historialVentas.filter(v=>!busqHist||v.nombre?.toLowerCase().includes(busqHist.toLowerCase())||v.rut?.includes(busqHist)||v.folio?.includes(busqHist)).map((v,i)=>(
+                      <tr key={v.id||i} style={{borderTop:'1px solid var(--bdr)',background:i%2===0?'#fff':'var(--s2)'}}>
+                        <td style={{padding:'8px 12px'}}>{v.fecha}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.rut}</td>
+                        <td style={{padding:'8px 12px',fontWeight:500}}>{v.nombre}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.folio}</td>
+                        <td style={{padding:'8px 12px',fontFamily:'var(--mono)',fontWeight:600,color:'var(--green)'}}>${(v.monto||0).toLocaleString('es-CL')}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.obs||'—'}</td>
+                      </tr>
+                    ))}
+                    {historialVentas.length===0&&<tr><td colSpan={6} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin ventas registradas</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
         )}
       </main>
     </>

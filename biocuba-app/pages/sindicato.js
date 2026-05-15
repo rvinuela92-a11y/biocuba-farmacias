@@ -11,6 +11,8 @@ export default function Sindicato() {
   const router = useRouter()
   const [session, setSession] = useState(null)
   const [ventas, setVentas] = useState([])
+  const [historialVentas, setHistorialVentas] = useState([])
+  const [busqHist, setBusqHist] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(()=>{
@@ -84,6 +86,38 @@ export default function Sindicato() {
             <span style={{color:'var(--amber)'}}>{fmt(tMes)}</span>
           </div>
         </div>
+
+        {tab==='historial'&&(
+          <div>
+            <div style={{marginBottom:14}}>
+              <input value={busqHist} onChange={e=>setBusqHist(e.target.value)} placeholder="Buscar por nombre, RUT o folio..." style={{fontSize:14,padding:'9px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)',background:'#fff'}} />
+            </div>
+            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,overflow:'hidden'}}>
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                  <thead><tr style={{background:'var(--s2)'}}>
+                    {['Fecha','RUT','Nombre','Folio','Monto','Obs'].map(h=>(
+                      <th key={h} style={{padding:'8px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {historialVentas.filter(v=>!busqHist||v.nombre?.toLowerCase().includes(busqHist.toLowerCase())||v.rut?.includes(busqHist)||v.folio?.includes(busqHist)).map((v,i)=>(
+                      <tr key={v.id||i} style={{borderTop:'1px solid var(--bdr)',background:i%2===0?'#fff':'var(--s2)'}}>
+                        <td style={{padding:'8px 12px'}}>{v.fecha}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.rut}</td>
+                        <td style={{padding:'8px 12px',fontWeight:500}}>{v.nombre}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.folio}</td>
+                        <td style={{padding:'8px 12px',fontFamily:'var(--mono)',fontWeight:600,color:'var(--green)'}}>${(v.monto||0).toLocaleString('es-CL')}</td>
+                        <td style={{padding:'8px 12px',color:'var(--t2)'}}>{v.obs||'—'}</td>
+                      </tr>
+                    ))}
+                    {historialVentas.length===0&&<tr><td colSpan={6} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin ventas registradas</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   )

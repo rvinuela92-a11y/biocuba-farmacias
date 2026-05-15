@@ -4,7 +4,7 @@ export default function App({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <style>{`
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
