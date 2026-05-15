@@ -100,6 +100,7 @@ export default function Arqueo() {
     if(!s||s.rol!=='qf'){ router.replace('/login'); return }
     setSession(s)
     cargarHistorial(s)
+    verificarArqueoHoy(s)
     if(s.convenios) cargarConvenios(fecha)
     cargarDifPendientes(s)
   },[])
@@ -115,6 +116,13 @@ export default function Arqueo() {
     ])
     setConvBienestar((rB.data||[]).reduce((s,v)=>s+v.monto,0))
     setConvSindicato((rS.data||[]).reduce((s,v)=>s+v.monto,0))
+  }
+
+  const [arqueoHoy, setArqueoHoy] = useState(null)
+
+  async function verificarArqueoHoy(s){
+    const {data} = await supabase.from('arqueos').select('id,ef_total,golan').eq('sucursal_id',s.sucursal).eq('fecha',hoy()).single()
+    if(data) setArqueoHoy(data)
   }
 
   async function cargarHistorial(s){
@@ -305,7 +313,18 @@ export default function Arqueo() {
         {/* ===== TAB INGRESAR ===== */}
         {tab==='ingresar'&&(
           <div>
-            {/* CTRL BAR */}
+            {/* AVISO ARQUEO YA GUARDADO */}
+        {arqueoHoy&&(
+          <div style={{background:'var(--gbg)',border:'2px solid var(--gbdr)',borderRadius:10,padding:'12px 16px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:'var(--green)'}}>Arqueo del dia ya registrado</div>
+              <div style={{fontSize:12,color:'var(--t2)',marginTop:2}}>Efectivo: ${(arqueoHoy.ef_total||0).toLocaleString('es-CL')} · Ventas Golan: ${(arqueoHoy.golan?.totalVentas||0).toLocaleString('es-CL')}</div>
+            </div>
+            <button onClick={()=>setTab('historial')} style={{padding:'8px 16px',borderRadius:8,border:'none',background:'var(--green)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>Ver Historial</button>
+          </div>
+        )}
+
+        {/* CTRL BAR */}
             <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:16,flexWrap:'wrap'}}>
               <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inp,width:'auto'}} />
               {diaStr&&<span style={{fontSize:13,color:'var(--t2)',background:'var(--s2)',padding:'5px 12px',borderRadius:20}}>{diaStr}</span>}
