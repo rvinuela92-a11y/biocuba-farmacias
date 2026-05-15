@@ -7,92 +7,181 @@ import Head from 'next/head'
 const fmt = n => '$' + Math.round(n||0).toLocaleString('es-CL')
 const hoy = () => new Date().toISOString().split('T')[0]
 const mes = () => new Date().toISOString().slice(0,7)
-
 const BILLETES = [20000,10000,5000,1000,500,100,50,10]
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+const CATS_GASTO = {sencilla:'Fondo de cambio / Sencilla',limpieza:'Limpieza y Aseo',oficina:'Artículos de Oficina',mant_local:'Reparaciones y Mantención Local',mant_equipos:'Mantención de Equipos',otros:'Otros'}
+const CAUSAS_DIF = ['Error en medio de pago','Error en vuelto al cliente','Billete falso recibido','Gasto no registrado','Sencilla no registrada','Causa desconocida - investigar','Otro']
 
 export default function Arqueo() {
   const router = useRouter()
   const [session, setSession] = useState(null)
-  const [tab, setTab] = useState('arqueo')
+  const [tab, setTab] = useState('ingresar')
   const [fecha, setFecha] = useState(hoy())
-  const [golan, setGolan] = useState(null)
-  const [billetes, setBilletes] = useState({})
-  const [sumup, setSumup] = useState('')
+  
+  // Golan
+  const [golan, setGolan] = useState({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]})
+  const [golanCargado1, setGolanCargado1] = useState(false)
+  const [golanCargado2, setGolanCargado2] = useState(false)
+  
+  // Cajas
+  const [billetes1, setBilletes1] = useState({})
+  const [billetes2, setBilletes2] = useState({})
+  const [fondo1, setFondo1] = useState('')
+  const [fondo2, setFondo2] = useState('')
+  
+  // SumUp y transferencias
+  const [sumupReal, setSumupReal] = useState('')
   const [transfReal, setTransfReal] = useState('')
-  const [obs, setObs] = useState('')
-  const [difMotivo, setDifMotivo] = useState('')
+  
+  // Convenios (solo Maipú)
+  const [convBienestar, setConvBienestar] = useState(0)
+  const [convSindicato, setConvSindicato] = useState(0)
+  
+  // CxC, gastos, devoluciones
+  const [cxc, setCxc] = useState([])
+  const [gastos, setGastos] = useState([])
+  const [devs, setDevs] = useState([])
+  
+  // Motivo diferencia
+  const [difCausa, setDifCausa] = useState('')
   const [difResp, setDifResp] = useState('')
+  const [difDet, setDifDet] = useState('')
+  const [difDescontar, setDifDescontar] = useState(false)
+  
+  // Obs
+  const [obs, setObs] = useState('')
+  
+  // Historial
+  const [historial, setHistorial] = useState([])
+  const [histLoading, setHistLoading] = useState(false)
+  
+  // Depositos tab
+  const [depositos, setDepositos] = useState([])
+  const [depHistorial, setDepHistorial] = useState([])
+  const [depTab, setDepTab] = useState('pendientes')
+  
+  // Estado guardado
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
-  const [historial, setHistorial] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [difPendientes, setDifPendientes] = useState([])
 
   useEffect(()=>{
     const s = getSession()
     if(!s||s.rol!=='qf'){ router.replace('/login'); return }
     setSession(s)
     cargarHistorial(s)
+    if(s.convenios) cargarConvenios(fecha)
+    cargarDifPendientes(s)
   },[])
 
+  useEffect(()=>{
+    if(session?.convenios) cargarConvenios(fecha)
+  },[fecha])
+
+  async function cargarConvenios(f){
+    const [rB,rS] = await Promise.all([
+      supabase.from('bienestar_ventas').select('monto').eq('fecha',f).eq('sucursal_id','maipu'),
+      supabase.from('sindicato_ventas').select('monto').eq('fecha',f).eq('sucursal_id','maipu'),
+    ])
+    setConvBienestar((rB.data||[]).reduce((s,v)=>s+v.monto,0))
+    setConvSindicato((rS.data||[]).reduce((s,v)=>s+v.monto,0))
+  }
+
   async function cargarHistorial(s){
-    setLoading(true)
+    setHistLoading(true)
     const mesActual = mes()
     const {data} = await supabase.from('arqueos').select('*').eq('sucursal_id',s.sucursal).gte('fecha',mesActual+'-01').lte('fecha',mesActual+'-31').order('fecha',{ascending:false})
     setHistorial(data||[])
-    setLoading(false)
+    setHistLoading(false)
   }
 
-  // Parsear CSV Golan
-  async function parsearCSV(file){
-    if(!file) return
-    const buf = await file.arrayBuffer()
-    const txt = new TextDecoder('iso-8859-1').decode(buf)
-    const lines = txt.replace(/\r/g,'').split('\n').filter(l=>l.trim())
-    let totalVentas=0, totalEfectivo=0, totalTarjeta=0, totalTransferencia=0
-    const vendedores = {}
-    lines.forEach(line=>{
-      const cols = line.split(';')
-      if(cols.length < 16) return
-      const monto = parseFloat(cols[4]?.replace(/[^0-9.-]/g,''))||0
-      const tipo = cols[5]?.trim()
-      const vid = cols[14]?.trim()
-      const vnombre = cols[15]?.trim()
-      if(monto<=0) return
-      totalVentas += monto
-      if(tipo==='Efectivo') totalEfectivo+=monto
-      else if(tipo==='Tarjeta') totalTarjeta+=monto
-      else if(tipo==='Transferencia') totalTransferencia+=monto
-      if(vid&&vnombre) vendedores[vid]={id:vid,nombre:vnombre}
-    })
-    setGolan({totalVentas,totalEfectivo,totalTarjeta,totalTransferencia,vendedores:Object.values(vendedores)})
+  async function cargarDifPendientes(s){
+    const hoyDate = hoy()
+    const {data} = await supabase.from('arqueos').select('fecha,dif_ef,motivo').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0)
+    const sinMotivo = (data||[]).filter(r=>!r.motivo?.causa)
+    setDifPendientes(sinMotivo)
   }
 
-  // Calcular totales
-  const efBilletes = BILLETES.reduce((s,b)=>s+(parseInt(billetes[b]||0)*b),0)
-  const sumaGolan = golan?.totalVentas||0
-  const efNeto = efBilletes - (parseFloat(sumup)||0)
-  const difEf = efNeto - (golan?.totalEfectivo||0)
+  async function parsearCSVMultiple(files, caja){
+    let totalEf=0,totalEfBruto=0,totalDeb=0,totalCred=0,totalTransf=0,totalCheque=0,totalDev=0,totalVentas=0
+    const vendMap = {}
+    for(const file of files){
+      const buf = await file.arrayBuffer()
+      const txt = new TextDecoder('iso-8859-1').decode(buf)
+      const lines = txt.replace(/\r/g,'').split('\n').filter(l=>l.trim())
+      lines.forEach(line=>{
+        const c = line.split(';')
+        if(c.length<16) return
+        const pm = s => parseFloat((s||'').replace(/[^0-9.-]/g,''))||0
+        const tipo = (c[2]||c[5]||'').trim()
+        const monto = pm(c[4])||pm(c[8])||pm(c[9])
+        if(monto<=0) return
+        totalVentas += monto
+        if(tipo==='Efectivo'||tipo==='Efectivo Neto') totalEf+=monto
+        else if(tipo==='Efectivo Bruto') totalEfBruto+=monto
+        else if(tipo==='Debito'||tipo==='Débito') totalDeb+=monto
+        else if(tipo==='Credito'||tipo==='Crédito') totalCred+=monto
+        else if(tipo==='Transferencia') totalTransf+=monto
+        else if(tipo==='Cheque 30 dias'||tipo==='Cheque 30 días') totalCheque+=monto
+        else if(tipo==='Devolucion'||tipo==='Devolución') totalDev+=monto
+        const vid=(c[14]||'').trim()
+        const vnombre=(c[15]||'').trim()
+        if(vid&&vnombre) vendMap[vid]={id:vid,nombre:vnombre}
+      })
+    }
+    setGolan(prev=>({
+      ef: prev.ef+totalEf,
+      efBruto: prev.efBruto+totalEfBruto,
+      deb: prev.deb+totalDeb,
+      cred: prev.cred+totalCred,
+      transf: prev.transf+totalTransf,
+      cheque: prev.cheque+totalCheque,
+      dev: prev.dev+totalDev,
+      totalVentas: prev.totalVentas+totalVentas,
+      vendedores: [...(prev.vendedores||[]), ...Object.values(vendMap)]
+    }))
+    if(caja===1) setGolanCargado1(true)
+    if(caja===2) setGolanCargado2(true)
+  }
+
+  // Calculos
+  const ef1 = BILLETES.reduce((s,b)=>s+(parseInt(billetes1[b]||0)*b),0)
+  const ef2 = BILLETES.reduce((s,b)=>s+(parseInt(billetes2[b]||0)*b),0)
+  const fondo1n = parseFloat(fondo1)||0
+  const fondo2n = parseFloat(fondo2)||0
+  const dep1 = Math.max(0, ef1-fondo1n)
+  const dep2 = Math.max(0, ef2-fondo2n)
+  const efTotal = ef1+ef2
+  const efNeto = dep1+dep2
+  const difEf = efNeto - golan.ef
+  const totalConv = convBienestar+convSindicato
+  const difConv = golan.cheque - totalConv
+  const totalCxC = cxc.reduce((s,c)=>s+(parseFloat(c.monto)||0),0)
+  const totalGastos = gastos.reduce((s,g)=>s+(parseFloat(g.monto)||0),0)
+  const totalDevs = devs.reduce((s,d)=>s+(parseFloat(d.monto)||0),0)
+  const diaStr = fecha ? (() => { const d=new Date(fecha+'T12:00:00'); return DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()] })() : ''
 
   async function guardar(){
-    if(!golan){ alert('Debes subir el CSV de Golan primero'); return }
-    if(!fecha){ alert('Selecciona la fecha'); return }
-    if(efBilletes===0){ alert('Ingresa el conteo de billetes'); return }
+    if(!golanCargado1&&!golanCargado2){ alert('Debes subir al menos un CSV de Golan'); return }
+    if(efTotal===0){ alert('Ingresa el conteo de billetes'); return }
+    if(difEf!==0&&!difCausa){ alert('Debes registrar el motivo de la diferencia en efectivo'); return }
     setGuardando(true)
     try {
       const payload = {
         id: fecha+'_'+session.sucursal,
-        fecha,
-        sucursal_id: session.sucursal,
+        fecha, sucursal_id: session.sucursal,
         usuario_nombre: session.nombre,
-        golan: golan,
-        ef_total: efBilletes,
-        ef_neto: efNeto,
-        dif_ef: difEf,
-        sumup: parseFloat(sumup)||0,
+        golan,
+        cajas: {c1:{billetes:billetes1,fondo:fondo1n,total:ef1,dep:dep1},c2:{billetes:billetes2,fondo:fondo2n,total:ef2,dep:dep2}},
+        ef_total: efTotal, ef_neto: efNeto, dif_ef: difEf,
+        sumup: parseFloat(sumupReal)||0,
         transf_real: parseFloat(transfReal)||0,
-        motivo: difEf!==0&&difMotivo?{causa:difMotivo,resp:difResp}:null,
-        obs,
-        ts: Date.now(),
+        gastos: gastos.filter(g=>g.monto),
+        cxc: cxc.filter(c=>c.monto),
+        devs: devs.filter(d=>d.monto),
+        motivo: difEf!==0?{causa:difCausa,resp:difResp,det:difDet,descontar:difDescontar}:null,
+        obs, ts: Date.now(),
         updated_at: new Date().toISOString()
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
@@ -100,170 +189,451 @@ export default function Arqueo() {
       setGuardado(true)
       cargarHistorial(session)
       setTimeout(()=>setGuardado(false),3000)
-    } catch(e) {
-      alert('Error al guardar: '+e.message)
-    } finally {
-      setGuardando(false)
-    }
+    } catch(e){ alert('Error al guardar: '+e.message) }
+    finally { setGuardando(false) }
   }
 
-  const inp = {fontSize:15,padding:'10px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)',background:'#fff'}
+  async function agregarDeposito(){
+    setDepositos([...depositos,{id:Date.now(),banco:'',monto:'',obs:'',fecha:fecha,pendiente:true}])
+  }
+
+  const inp = {fontSize:14,padding:'9px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)',background:'#fff'}
   const lbl = {fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--t2)',display:'block',marginBottom:4}
+  const sec = {background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20,marginBottom:14}
+  const paso = {background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,marginBottom:14,overflow:'hidden'}
+  const pasoHdr = {padding:'14px 20px',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',gap:12}
+  const pasoBody = {padding:20}
 
   return (
     <>
-      <Head><title>Arqueo de Caja — BioCuba</title></Head>
+      <Head><title>Arqueo de Caja - BioCuba</title></Head>
       <header style={{background:'#fff',borderBottom:'2.5px solid var(--br)',padding:'0 20px',display:'flex',alignItems:'center',minHeight:54,gap:12,flexWrap:'wrap'}}>
         <img src="/logo.jpg" alt="BioCuba" style={{height:38,width:'auto'}} />
         <div style={{width:1,height:22,background:'var(--bdr)'}}></div>
-        <span style={{fontSize:13,fontWeight:600}}>📊 Arqueo de Caja</span>
+        <span style={{fontSize:13,fontWeight:600}}>Arqueo de Caja</span>
         <span style={{fontSize:12,fontWeight:600,color:'#fff',background:'var(--blue)',padding:'3px 10px',borderRadius:20}}>{session?.sucursalNombre}</span>
-        <a href="/qf" style={{marginLeft:'auto',fontSize:12,color:'var(--t2)',textDecoration:'none'}}>← Panel QF</a>
+        <a href="/qf" style={{marginLeft:'auto',fontSize:12,color:'var(--t2)',textDecoration:'none'}}>Panel QF</a>
       </header>
 
       <main style={{padding:20,maxWidth:960,margin:'0 auto'}}>
+
+        {/* ALERTA DIFERENCIAS PENDIENTES */}
+        {difPendientes.length>0&&(
+          <div style={{background:'#FCEBEB',border:'1px solid #F7C1C1',borderRadius:10,padding:'14px 16px',marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:600,color:'#791F1F',marginBottom:6}}>Hay diferencias de dias anteriores sin resolver</div>
+            {difPendientes.map(d=>(
+              <div key={d.fecha} style={{fontSize:12,color:'#A32D2D'}}>{d.fecha}: {fmt(d.dif_ef)}</div>
+            ))}
+            <div style={{fontSize:11,color:'#A32D2D',marginTop:6,paddingTop:6,borderTop:'1px solid #F09595'}}>Estas diferencias deben ser investigadas.</div>
+          </div>
+        )}
+
         {/* TABS */}
-        <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--s2)',padding:4,borderRadius:10,width:'fit-content'}}>
-          {[['arqueo','📊 Registrar Arqueo'],['historial','📋 Historial']].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{padding:'7px 16px',borderRadius:7,border:'none',background:tab===id?'#fff':'transparent',fontWeight:tab===id?600:400,fontSize:13,color:tab===id?'var(--tx)':'var(--t2)',boxShadow:tab===id?'0 1px 4px rgba(0,0,0,.08)':'none'}}>{lbl}</button>
+        <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--s2)',padding:4,borderRadius:10,overflowX:'auto'}}>
+          {[['ingresar','Ingreso Diario'],['depositos','Depositos'],['fondo','Fondo de Caja'],['cobros','Cobros'],['historial','Historial del Mes']].map(([id,l])=>(
+            <button key={id} onClick={()=>setTab(id)} style={{padding:'7px 14px',borderRadius:7,border:'none',background:tab===id?'#fff':'transparent',fontWeight:tab===id?600:400,fontSize:13,color:tab===id?'var(--tx)':'var(--t2)',whiteSpace:'nowrap',flexShrink:0}}>
+              {l}
+            </button>
           ))}
         </div>
 
-        {/* TAB ARQUEO */}
-        {tab==='arqueo'&&(
-          <div style={{display:'flex',flexDirection:'column',gap:14}}>
-
-            {/* FECHA */}
-            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20}}>
-              <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Fecha del arqueo</div>
+        {/* ===== TAB INGRESAR ===== */}
+        {tab==='ingresar'&&(
+          <div>
+            {/* CTRL BAR */}
+            <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:16,flexWrap:'wrap'}}>
               <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} style={{...inp,width:'auto'}} />
+              {diaStr&&<span style={{fontSize:13,color:'var(--t2)',background:'var(--s2)',padding:'5px 12px',borderRadius:20}}>{diaStr}</span>}
             </div>
 
-            {/* GOLAN CSV */}
-            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20}}>
-              <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>Archivo CSV Golan</div>
-              <div style={{fontSize:12,color:'var(--t3)',marginBottom:14}}>Sube el archivo de cierre Z del día (codificación latin1)</div>
-              <input type="file" accept=".csv,.txt" onChange={e=>parsearCSV(e.target.files[0])} style={{fontSize:13,marginBottom:12}} />
-              {golan&&(
-                <div style={{background:'var(--gbg)',border:'1px solid var(--gbdr)',borderRadius:8,padding:14,marginTop:8}}>
-                  <div style={{fontSize:13,fontWeight:600,color:'var(--green)',marginBottom:8}}>✓ CSV cargado correctamente</div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-                    {[['Total Ventas',golan.totalVentas],['Efectivo',golan.totalEfectivo],['Tarjeta/SumUp',golan.totalTarjeta]].map(([l,v])=>(
-                      <div key={l} style={{background:'#fff',borderRadius:7,padding:10,textAlign:'center'}}>
-                        <div style={{fontSize:9,textTransform:'uppercase',color:'var(--t3)',marginBottom:3}}>{l}</div>
-                        <div style={{fontFamily:'var(--mono)',fontSize:15,fontWeight:700}}>{fmt(v)}</div>
+            {/* KPIs */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+              {[
+                {lbl:'Venta Total del Dia',val:fmt(golan.totalVentas),sub:'Segun cierre Z de Golan',color:'var(--blue)'},
+                {lbl:'Efectivo a Depositar',val:fmt(efNeto),sub:'Total cajas menos fondos',color:'var(--green)'},
+                {lbl:'Diferencia en Efectivo',val:difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),sub:'Golan vs arqueo real',color:difEf===0&&efTotal>0?'var(--green)':difEf!==0?'var(--red)':'var(--t3)'},
+                ...(session?.convenios?[{lbl:'Convenios (Cheque)',val:fmt(golan.cheque),sub:'Bienestar + Sindicato',color:'var(--amber)'}]:[]),
+              ].map((k,i)=>(
+                <div key={i} style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:10,padding:'12px 14px'}}>
+                  <div style={{fontSize:9,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:4}}>{k.lbl}</div>
+                  <div style={{fontFamily:'var(--mono)',fontSize:18,fontWeight:700,color:k.color}}>{k.val}</div>
+                  <div style={{fontSize:10,color:'var(--t3)',marginTop:2}}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* PASO 1: GOLAN */}
+            <div style={paso}>
+              <div style={pasoHdr}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:'var(--blue)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,flexShrink:0}}>{golanCargado1||golanCargado2?'✓':'1'}</div>
+                <div>
+                  <div style={{fontSize:14,fontWeight:600}}>Registro de Ventas Golan</div>
+                  <div style={{fontSize:11,color:'var(--t3)'}}>Importa el cierre Z — un archivo por caja</div>
+                </div>
+              </div>
+              <div style={pasoBody}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+                  {[1,2].map(n=>(
+                    <div key={n} onClick={()=>document.getElementById('file-caja-'+n).click()}
+                      style={{border:`2px dashed ${n===1?golanCargado1?'var(--gbdr)':'var(--bdr2)':golanCargado2?'var(--gbdr)':'var(--bdr2)'}`,borderRadius:10,padding:16,cursor:'pointer',background:n===1?golanCargado1?'var(--gbg)':'var(--s2)':golanCargado2?'var(--gbg)':'var(--s2)',textAlign:'center'}}>
+                      <div style={{fontSize:24,marginBottom:6}}>{n===1?golanCargado1?'✓':'📄':golanCargado2?'✓':'📄'}</div>
+                      <div style={{fontSize:13,fontWeight:500,color:n===1?golanCargado1?'var(--green)':'var(--t2)':golanCargado2?'var(--green)':'var(--t2)'}}>{n===1?golanCargado1?'Caja 1 cargada':'Importar Cierre Z - Caja 1':golanCargado2?'Caja 2 cargada':'Importar Cierre Z - Caja 2'}</div>
+                      <div style={{fontSize:11,color:'var(--t3)',marginTop:4}}>Puedes subir varios dias a la vez</div>
+                      <input type="file" id={'file-caja-'+n} accept=".csv,.txt" multiple style={{display:'none'}} onChange={e=>parsearCSVMultiple(e.target.files,n)} />
+                    </div>
+                  ))}
+                </div>
+                {(golanCargado1||golanCargado2)&&(
+                  <div style={{background:'var(--s2)',borderRadius:10,padding:16}}>
+                    {[
+                      ['Efectivo (neto)',golan.ef,'var(--tx)'],
+                      ['Tarjeta Debito',golan.deb,'var(--tx)'],
+                      ['Tarjeta Credito',golan.cred,'var(--tx)'],
+                      ['Transferencias',golan.transf,'var(--tx)'],
+                      ['Cheque 30 dias',golan.cheque,'var(--amber)'],
+                      ['Devoluciones / NC',golan.dev,'var(--red)'],
+                    ].map(([l,v,c])=>(
+                      <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--bdr)'}}>
+                        <span style={{fontSize:12,color:l==='Cheque 30 dias'||l==='Devoluciones / NC'?c:'var(--t2)',fontWeight:l==='Cheque 30 dias'?600:400}}>{l}</span>
+                        <span style={{fontFamily:'var(--mono)',fontSize:12,fontWeight:600,color:c}}>{fmt(v)}</span>
+                      </div>
+                    ))}
+                    <div style={{display:'flex',justifyContent:'space-between',padding:'8px 0',fontWeight:700}}>
+                      <span style={{fontSize:13}}>Total Venta del Dia</span>
+                      <span style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--blue)'}}>{fmt(golan.totalVentas)}</span>
+                    </div>
+                    {golan.vendedores?.length>0&&(
+                      <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--bdr)'}}>
+                        <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--t2)',marginBottom:6}}>Vendedores</div>
+                        {golan.vendedores.map(v=><div key={v.id} style={{fontSize:12,color:'var(--t2)'}}>{v.nombre}</div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* PASO 2: EFECTIVO POR CAJA */}
+            <div style={paso}>
+              <div style={pasoHdr}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:ef1+ef2>0?'var(--green)':'var(--blue)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,flexShrink:0}}>{ef1+ef2>0?'✓':'2'}</div>
+                <div>
+                  <div style={{fontSize:14,fontWeight:600}}>Arqueo de Efectivo por Caja</div>
+                  <div style={{fontSize:11,color:'var(--t3)'}}>Cuenta el efectivo e ingresa la cantidad de cada denominacion</div>
+                </div>
+              </div>
+              <div style={pasoBody}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+                  {[{n:1,bs:billetes1,sb:setBilletes1,f:fondo1,sf:setFondo1,ef:ef1,dep:dep1},{n:2,bs:billetes2,sb:setBilletes2,f:fondo2,sf:setFondo2,ef:ef2,dep:dep2}].map(({n,bs,sb,f,sf,ef,dep})=>(
+                    <div key={n} style={{background:'var(--s2)',borderRadius:10,padding:14}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                        <span style={{fontSize:13,fontWeight:600}}>Caja {n}</span>
+                        <span style={{fontFamily:'var(--mono)',fontSize:15,fontWeight:700,color:'var(--blue)'}}>{fmt(ef)}</span>
+                      </div>
+                      {BILLETES.map(b=>(
+                        <div key={b} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                          <span style={{fontFamily:'var(--mono)',fontSize:12,fontWeight:600,minWidth:55,color:'var(--blue)'}}>{fmt(b)}</span>
+                          <span style={{color:'var(--t3)',fontSize:11}}>x</span>
+                          <input type="number" min="0" value={bs[b]||''} onChange={e=>{const v={...bs};v[b]=e.target.value;sb(v)}}
+                            placeholder="0" style={{...inp,width:60,textAlign:'center',padding:'5px 6px',fontSize:13,fontFamily:'var(--mono)'}} />
+                          <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--t2)',marginLeft:'auto'}}>{fmt((parseInt(bs[b]||0)*b))}</span>
+                        </div>
+                      ))}
+                      <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--bdr)'}}>
+                        <div style={{fontSize:11,color:'var(--t2)',marginBottom:4}}>Fondo de Caja</div>
+                        <input type="number" value={f} onChange={e=>sf(e.target.value)} placeholder="0" style={{...inp,width:'100%',fontFamily:'var(--mono)',fontSize:14,fontWeight:600}} />
+                      </div>
+                      <div style={{marginTop:10,display:'flex',justifyContent:'space-between',padding:'8px 0',fontWeight:600}}>
+                        <span style={{fontSize:12,color:'var(--t2)'}}>Total a Depositar</span>
+                        <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--green)'}}>{fmt(dep)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comparacion Golan vs Arqueo */}
+                <div style={{background:'var(--s2)',borderRadius:10,padding:14}}>
+                  <div style={{fontSize:12,fontWeight:600,marginBottom:10,color:'var(--t2)'}}>Comparacion Efectivo — Golan vs Arqueo Real</div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+                    {[['Golan dice',fmt(golan.ef),'var(--blue)'],['Arqueo real',fmt(efNeto),'var(--tx)'],['Diferencia',difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),difEf===0&&efTotal>0?'var(--green)':difEf!==0?'var(--red)':'var(--t3)']].map(([l,v,c])=>(
+                      <div key={l} style={{textAlign:'center',background:'#fff',borderRadius:8,padding:10}}>
+                        <div style={{fontSize:9,color:'var(--t3)',textTransform:'uppercase',marginBottom:4}}>{l}</div>
+                        <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:c}}>{v}</div>
                       </div>
                     ))}
                   </div>
-                  {golan.vendedores?.length>0&&(
-                    <div style={{marginTop:10,fontSize:12,color:'var(--t2)'}}>Vendedores: {golan.vendedores.map(v=>v.nombre).join(', ')}</div>
-                  )}
                 </div>
-              )}
-            </div>
 
-            {/* BILLETES */}
-            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20}}>
-              <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Conteo de billetes y monedas</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                {BILLETES.map(b=>(
-                  <div key={b} style={{display:'flex',alignItems:'center',gap:10,background:'var(--s2)',borderRadius:8,padding:'8px 12px'}}>
-                    <span style={{fontFamily:'var(--mono)',fontSize:13,fontWeight:600,minWidth:60,color:'var(--blue)'}}>{fmt(b)}</span>
-                    <span style={{color:'var(--t3)',fontSize:12}}>×</span>
-                    <input type="number" min="0" value={billetes[b]||''} onChange={e=>{const v={...billetes};v[b]=e.target.value;setBilletes(v)}}
-                      placeholder="0" style={{...inp,width:70,textAlign:'center',padding:'6px 8px',fontSize:14,fontFamily:'var(--mono)'}} />
-                    <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--t2)',marginLeft:'auto'}}>{fmt((parseInt(billetes[b]||0)*b))}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{marginTop:14,padding:'12px 16px',background:'var(--bbg)',borderRadius:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontSize:13,fontWeight:600,color:'var(--blue)'}}>Total efectivo contado</span>
-                <span style={{fontFamily:'var(--mono)',fontSize:20,fontWeight:700,color:'var(--blue)'}}>{fmt(efBilletes)}</span>
-              </div>
-            </div>
-
-            {/* SUMUP Y TRANSFERENCIAS */}
-            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20}}>
-              <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Otras formas de pago</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                <div>
-                  <label style={lbl}>SumUp (tarjeta)</label>
-                  <input type="number" value={sumup} onChange={e=>setSumup(e.target.value)} placeholder="0" style={inp} />
-                </div>
-                <div>
-                  <label style={lbl}>Transferencias recibidas</label>
-                  <input type="number" value={transfReal} onChange={e=>setTransfReal(e.target.value)} placeholder="0" style={inp} />
-                </div>
-              </div>
-            </div>
-
-            {/* RESUMEN */}
-            {golan&&(
-              <div style={{background:'#fff',border:`2px solid ${Math.abs(difEf)>0?'var(--rbdr)':'var(--gbdr)'}`,borderRadius:12,padding:20}}>
-                <div style={{fontSize:14,fontWeight:600,marginBottom:14}}>Resumen del arqueo</div>
-                {[
-                  ['Ventas Golan',fmt(sumaGolan),'var(--blue)'],
-                  ['Efectivo Golan',fmt(golan.totalEfectivo),'var(--t2)'],
-                  ['Efectivo contado',fmt(efBilletes),'var(--t2)'],
-                  ['SumUp',fmt(parseFloat(sumup)||0),'var(--t2)'],
-                  ['Efectivo neto',fmt(efNeto),'var(--blue)'],
-                ].map(([l,v,c])=>(
-                  <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--bdr)'}}>
-                    <span style={{fontSize:13,color:'var(--t2)'}}>{l}</span>
-                    <span style={{fontFamily:'var(--mono)',fontWeight:600,color:c}}>{v}</span>
-                  </div>
-                ))}
-                <div style={{display:'flex',justifyContent:'space-between',padding:'10px 0',marginTop:4}}>
-                  <span style={{fontSize:14,fontWeight:700,color:difEf!==0?'var(--red)':'var(--green)'}}>
-                    {difEf===0?'✓ Cuadrado':'⚠ Diferencia en efectivo'}
-                  </span>
-                  <span style={{fontFamily:'var(--mono)',fontSize:18,fontWeight:700,color:difEf!==0?'var(--red)':'var(--green)'}}>{fmt(difEf)}</span>
-                </div>
-                {difEf!==0&&(
-                  <div style={{marginTop:10,padding:14,background:'var(--rbg)',borderRadius:8}}>
-                    <div style={{fontSize:12,fontWeight:600,color:'var(--red)',marginBottom:10}}>Explica la diferencia</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                      <div>
-                        <label style={lbl}>Motivo</label>
-                        <input value={difMotivo} onChange={e=>setDifMotivo(e.target.value)} placeholder="ej: vuelto incorrecto" style={inp} />
+                {/* CONVENIOS - solo Maipu */}
+                {session?.convenios&&(
+                  <div style={{marginTop:14,background:Math.abs(difConv)>100?'var(--rbg)':'var(--gbg)',border:`1px solid ${Math.abs(difConv)>100?'var(--rbdr)':'var(--gbdr)'}`,borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:600,color:'var(--amber)',marginBottom:10}}>Convenios — Cheque 30 Dias</div>
+                    {[
+                      ['Cheque segun Golan',fmt(golan.cheque),'var(--amber)'],
+                      ['Bienestar Municipal (registrado hoy)',fmt(convBienestar),'var(--green)'],
+                      ['Sindicato Municipal (registrado hoy)',fmt(convSindicato),'var(--green)'],
+                    ].map(([l,v,c])=>(
+                      <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--bdr)'}}>
+                        <span style={{fontSize:12,color:'var(--t2)'}}>{l}</span>
+                        <span style={{fontFamily:'var(--mono)',fontSize:12,fontWeight:600,color:c}}>{v}</span>
                       </div>
-                      <div>
-                        <label style={lbl}>Responsable</label>
-                        <input value={difResp} onChange={e=>setDifResp(e.target.value)} placeholder="nombre del vendedor" style={inp} />
-                      </div>
+                    ))}
+                    <div style={{display:'flex',justifyContent:'space-between',padding:'8px 0',fontWeight:700}}>
+                      <span style={{fontSize:12}}>Diferencia convenios</span>
+                      <span style={{fontFamily:'var(--mono)',fontSize:14,color:Math.abs(difConv)>100?'var(--red)':'var(--green)'}}>{difConv===0?'OK':fmt(difConv)}</span>
                     </div>
+                    {Math.abs(difConv)<=100?
+                      <div style={{fontSize:12,color:'var(--green)',fontWeight:500}}>Convenios cuadran perfectamente con Golan</div>:
+                      <div style={{fontSize:12,color:'var(--red)',fontWeight:500}}>Los convenios no cuadran con Golan — revisa los registros</div>
+                    }
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* PASO 3: MEDIOS ELECTRONICOS */}
+            <div style={paso}>
+              <div style={pasoHdr}>
+                <div style={{width:28,height:28,borderRadius:'50%',background:'var(--blue)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,flexShrink:0}}>3</div>
+                <div>
+                  <div style={{fontSize:14,fontWeight:600}}>Verificacion de Medios de Pago Electronicos</div>
+                  <div style={{fontSize:11,color:'var(--t3)'}}>Confirma que SumUp y transferencias cuadren con Golan</div>
+                </div>
+              </div>
+              <div style={pasoBody}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                  {[
+                    {titulo:'SumUp — Debito y Credito',golanVal:golan.deb+golan.cred,real:sumupReal,setReal:setSumupReal,placeholder:'Total segun SumUp'},
+                    {titulo:'Transferencias Bancarias',golanVal:golan.transf,real:transfReal,setReal:setTransfReal,placeholder:'Recibido en cuenta bancaria'},
+                  ].map(({titulo,golanVal,real,setReal,placeholder})=>{
+                    const dif = (parseFloat(real)||0) - golanVal
+                    return (
+                      <div key={titulo} style={{background:'var(--s2)',borderRadius:10,padding:14}}>
+                        <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>{titulo}</div>
+                        <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                          <span style={{fontSize:12,color:'var(--t2)'}}>Golan registro</span>
+                          <span style={{fontFamily:'var(--mono)',fontSize:14,fontWeight:600,color:'var(--blue)'}}>{fmt(golanVal)}</span>
+                        </div>
+                        <div style={{marginBottom:8}}>
+                          <label style={{...lbl}}>Confirmar monto real</label>
+                          <input type="number" value={real} onChange={e=>setReal(e.target.value)} placeholder={placeholder} style={inp} />
+                        </div>
+                        {real&&(
+                          <div style={{display:'flex',justifyContent:'space-between'}}>
+                            <span style={{fontSize:12,color:'var(--t2)'}}>Diferencia</span>
+                            <span style={{fontFamily:'var(--mono)',fontSize:14,fontWeight:600,color:Math.abs(dif)<100?'var(--green)':'var(--red)'}}>{Math.abs(dif)<100?'OK':fmt(dif)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* CXC */}
+            <div style={sec}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:14,fontWeight:600}}>Cuentas por Cobrar</div>
+                  <div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>Clientes que se llevaron productos y pagaran por transferencia</div>
+                </div>
+                {totalCxC>0&&<span style={{fontFamily:'var(--mono)',fontWeight:700,color:'var(--amber)',fontSize:15}}>{fmt(totalCxC)}</span>}
+              </div>
+              {cxc.map((c,i)=>(
+                <div key={c.id||i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:10,marginBottom:10,alignItems:'end'}}>
+                  <div><label style={lbl}>Cliente</label><input value={c.cliente||''} onChange={e=>{const v=[...cxc];v[i]={...v[i],cliente:e.target.value};setCxc(v)}} placeholder="nombre cliente" style={inp} /></div>
+                  <div><label style={lbl}>Concepto</label><input value={c.concepto||''} onChange={e=>{const v=[...cxc];v[i]={...v[i],concepto:e.target.value};setCxc(v)}} placeholder="ej: receta, cheque" style={inp} /></div>
+                  <div><label style={lbl}>Monto</label><input type="number" value={c.monto||''} onChange={e=>{const v=[...cxc];v[i]={...v[i],monto:e.target.value};setCxc(v)}} placeholder="0" style={inp} /></div>
+                  <button onClick={()=>setCxc(cxc.filter((_,j)=>j!==i))} style={{padding:'9px 10px',borderRadius:8,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',cursor:'pointer'}}>x</button>
+                </div>
+              ))}
+              <button onClick={()=>setCxc([...cxc,{id:Date.now(),cliente:'',concepto:'',monto:''}])} style={{padding:'7px 14px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>+ Agregar cuenta por cobrar</button>
+            </div>
+
+            {/* GASTOS */}
+            <div style={sec}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{fontSize:14,fontWeight:600}}>Gastos del Local</div>
+                {totalGastos>0&&<span style={{fontFamily:'var(--mono)',fontWeight:700,color:'var(--red)',fontSize:15}}>{fmt(totalGastos)}</span>}
+              </div>
+              {gastos.map((g,i)=>(
+                <div key={g.id||i} style={{background:'var(--s2)',border:'1px solid var(--bdr)',borderRadius:8,padding:12,marginBottom:8}}>
+                  <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end',marginBottom:8}}>
+                    <div>
+                      <label style={lbl}>Tipo</label>
+                      <select value={g.tipo||'boleta'} onChange={e=>{const v=[...gastos];v[i]={...v[i],tipo:e.target.value};setGastos(v)}} style={{...inp,width:100,background:'#fff',fontSize:12}}>
+                        <option value="sencilla">Sencilla</option>
+                        <option value="boleta">Boleta</option>
+                        <option value="factura">Factura</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>Categoria</label>
+                      <select value={g.cat||''} onChange={e=>{const v=[...gastos];v[i]={...v[i],cat:e.target.value};setGastos(v)}} style={{...inp,background:'#fff',fontSize:12}}>
+                        <option value="">Seleccionar...</option>
+                        {Object.entries(CATS_GASTO).map(([k,l])=><option key={k} value={k}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>Descripcion</label>
+                      <input value={g.desc||''} onChange={e=>{const v=[...gastos];v[i]={...v[i],desc:e.target.value};setGastos(v)}} placeholder="detalle" style={inp} />
+                    </div>
+                    <div>
+                      <label style={lbl}>Monto</label>
+                      <input type="number" value={g.monto||''} onChange={e=>{const v=[...gastos];v[i]={...v[i],monto:e.target.value};setGastos(v)}} placeholder="0" style={inp} />
+                    </div>
+                    <button onClick={()=>setGastos(gastos.filter((_,j)=>j!==i))} style={{padding:'9px 10px',borderRadius:8,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',cursor:'pointer',alignSelf:'flex-end'}}>x</button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={()=>setGastos([...gastos,{id:Date.now(),tipo:'boleta',cat:'',desc:'',monto:''}])} style={{padding:'7px 14px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>+ Agregar gasto</button>
+            </div>
+
+            {/* DEVOLUCIONES EN EFECTIVO */}
+            <div style={sec}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                <div style={{fontSize:14,fontWeight:600}}>Devoluciones en Efectivo</div>
+                {totalDevs>0&&<span style={{fontFamily:'var(--mono)',fontWeight:700,color:'var(--red)',fontSize:15}}>{fmt(totalDevs)}</span>}
+              </div>
+              <div style={{fontSize:11,color:'var(--t3)',marginBottom:10}}>Devoluciones pagadas en efectivo por ventas originalmente con tarjeta. Estas reducen el efectivo a depositar.</div>
+              {devs.map((d,i)=>(
+                <div key={d.id||i} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:10,marginBottom:10,alignItems:'end'}}>
+                  <div><label style={lbl}>Cliente / Motivo</label><input value={d.motivo||''} onChange={e=>{const v=[...devs];v[i]={...v[i],motivo:e.target.value};setDevs(v)}} placeholder="ej: cambio producto" style={inp} /></div>
+                  <div><label style={lbl}>Monto</label><input type="number" value={d.monto||''} onChange={e=>{const v=[...devs];v[i]={...v[i],monto:e.target.value};setDevs(v)}} placeholder="0" style={inp} /></div>
+                  <button onClick={()=>setDevs(devs.filter((_,j)=>j!==i))} style={{padding:'9px 10px',borderRadius:8,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',cursor:'pointer'}}>x</button>
+                </div>
+              ))}
+              <button onClick={()=>setDevs([...devs,{id:Date.now(),motivo:'',monto:''}])} style={{padding:'7px 14px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>+ Agregar devolucion</button>
+            </div>
+
+            {/* MOTIVO DIFERENCIA */}
+            {difEf!==0&&efTotal>0&&(
+              <div style={{...sec,border:'1px solid var(--rbdr)',background:'var(--rbg)'}}>
+                <div style={{fontSize:14,fontWeight:600,color:'var(--red)',marginBottom:6}}>Motivo de la Diferencia en Efectivo</div>
+                <div style={{fontSize:12,color:'var(--red)',marginBottom:12}}>Hay una diferencia de {fmt(difEf)}. Debes registrar el motivo antes de guardar.</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:10}}>
+                  <div>
+                    <label style={lbl}>Causa</label>
+                    <select value={difCausa} onChange={e=>setDifCausa(e.target.value)} style={{...inp,background:'#fff'}}>
+                      <option value="">Seleccionar causa...</option>
+                      {CAUSAS_DIF.map(c=><option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={lbl}>Vendedor responsable</label>
+                    <select value={difResp} onChange={e=>setDifResp(e.target.value)} style={{...inp,background:'#fff'}}>
+                      <option value="">Seleccionar...</option>
+                      {golan.vendedores?.map(v=><option key={v.id} value={v.id}>{v.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <label style={lbl}>Detalle</label>
+                  <textarea value={difDet} onChange={e=>setDifDet(e.target.value)} rows={2} placeholder="Describe lo que ocurrio..." style={{...inp,resize:'vertical'}} />
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <input type="checkbox" checked={difDescontar} onChange={e=>setDifDescontar(e.target.checked)} style={{width:16,height:16}} />
+                  <label style={{fontSize:12,color:'var(--red)',fontWeight:500,cursor:'pointer'}}>Descontar del bono de asignacion de caja del colaborador</label>
+                </div>
               </div>
             )}
 
             {/* OBSERVACIONES */}
-            <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:20}}>
-              <label style={lbl}>Observaciones (opcional)</label>
-              <textarea value={obs} onChange={e=>setObs(e.target.value)} placeholder="Notas del día..." rows={3} style={{...inp,resize:'vertical'}} />
+            <div style={sec}>
+              <label style={{...lbl,fontSize:12}}>Observaciones del Dia</label>
+              <textarea value={obs} onChange={e=>setObs(e.target.value)} rows={3} placeholder="Registra cualquier diferencia encontrada, error o novedad relevante del dia..." style={{...inp,resize:'vertical'}} />
             </div>
 
-            {/* GUARDAR */}
-            {guardado&&(
-              <div style={{background:'var(--gbg)',border:'2px solid var(--gbdr)',borderRadius:10,padding:16,textAlign:'center',fontSize:14,fontWeight:600,color:'var(--green)'}}>
-                ✓ Arqueo guardado correctamente en Supabase
-              </div>
-            )}
-            <button onClick={guardar} disabled={guardando} style={{padding:16,borderRadius:12,border:'none',background:'var(--blue)',color:'#fff',fontSize:16,fontWeight:600,opacity:guardando?.7:1}}>
-              {guardando?'Guardando...':'✓ Guardar Arqueo'}
-            </button>
+            {guardado&&<div style={{background:'var(--gbg)',border:'2px solid var(--gbdr)',borderRadius:10,padding:14,textAlign:'center',fontSize:14,fontWeight:600,color:'var(--green)',marginBottom:14}}>Arqueo guardado correctamente en Supabase</div>}
+
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginBottom:20}}>
+              <button onClick={()=>{ setGolan({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]}); setBilletes1({}); setBilletes2({}); setFondo1(''); setFondo2(''); setSumupReal(''); setTransfReal(''); setCxc([]); setGastos([]); setDevs([]); setObs(''); setDifCausa(''); setDifResp(''); setDifDet(''); setDifDescontar(false); setGolanCargado1(false); setGolanCargado2(false) }}
+                style={{padding:'10px 20px',borderRadius:9,border:'1px solid var(--bdr)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>Limpiar</button>
+              <button onClick={guardar} disabled={guardando} style={{padding:'12px 28px',borderRadius:9,border:'none',background:'var(--blue)',color:'#fff',fontSize:15,fontWeight:600,opacity:guardando?.7:1,cursor:'pointer'}}>
+                {guardando?'Guardando...':'Guardar Arqueo'}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* TAB HISTORIAL */}
+        {/* ===== TAB DEPOSITOS ===== */}
+        {tab==='depositos'&&(
+          <div>
+            <div style={{fontSize:16,fontWeight:500,marginBottom:16}}>Depositos Bancarios</div>
+            <div style={{display:'flex',gap:4,marginBottom:16,background:'var(--s2)',padding:4,borderRadius:10,width:'fit-content'}}>
+              {[['pendientes','Pendientes'],['historial','Historial del Mes']].map(([id,l])=>(
+                <button key={id} onClick={()=>setDepTab(id)} style={{padding:'6px 14px',borderRadius:7,border:'none',background:depTab===id?'#fff':'transparent',fontWeight:depTab===id?600:400,fontSize:12,color:depTab===id?'var(--tx)':'var(--t2)'}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {depTab==='pendientes'&&(
+              <div>
+                {depositos.length===0?<div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos pendientes</div>:
+                depositos.map((d,i)=>(
+                  <div key={d.id||i} style={{...sec,marginBottom:10}}>
+                    <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
+                      <div><label style={lbl}>Fecha</label><input type="date" value={d.fecha||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],fecha:e.target.value};setDepositos(v)}} style={{...inp,width:130}} /></div>
+                      <div><label style={lbl}>Banco</label><input value={d.banco||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],banco:e.target.value};setDepositos(v)}} placeholder="ej: BancoEstado" style={inp} /></div>
+                      <div><label style={lbl}>Monto</label><input type="number" value={d.monto||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],monto:e.target.value};setDepositos(v)}} placeholder="0" style={inp} /></div>
+                      <div><label style={lbl}>Observacion</label><input value={d.obs||''} onChange={e=>{const v=[...depositos];v[i]={...v[i],obs:e.target.value};setDepositos(v)}} placeholder="opcional" style={inp} /></div>
+                      <button onClick={()=>setDepositos(depositos.filter((_,j)=>j!==i))} style={{padding:'9px 10px',borderRadius:8,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',cursor:'pointer',alignSelf:'flex-end'}}>x</button>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={agregarDeposito} style={{padding:'8px 16px',borderRadius:8,border:'1.5px dashed var(--bdr2)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13,marginBottom:16}}>+ Agregar deposito</button>
+                {depositos.length>0&&(
+                  <div style={{display:'flex',justifyContent:'flex-end'}}>
+                    <button onClick={async()=>{
+                      for(const d of depositos.filter(x=>x.monto)){
+                        await supabase.from('depositos').upsert({id:String(d.id),sucursal_id:session.sucursal,fecha_dep:d.fecha||hoy(),banco:d.banco,monto:parseFloat(d.monto)||0,obs:d.obs},{onConflict:'id'})
+                      }
+                      alert('Depositos guardados correctamente')
+                    }} style={{padding:'10px 24px',borderRadius:9,border:'none',background:'var(--green)',color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer'}}>
+                      Guardar Depositos
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {depTab==='historial'&&(
+              <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:16,color:'var(--t3)',textAlign:'center',fontSize:13}}>
+                Historial de depositos del mes — proximamente
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB FONDO ===== */}
+        {tab==='fondo'&&(
+          <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t2)',fontSize:13}}>
+            <div style={{fontSize:36,marginBottom:12}}>💰</div>
+            <div style={{fontSize:15,fontWeight:600,marginBottom:6}}>Fondo de Caja</div>
+            <div>Gestiona el fondo de caja desde el modulo dedicado</div>
+            <a href="/fondo" style={{display:'inline-block',marginTop:16,padding:'10px 24px',borderRadius:9,border:'none',background:'var(--blue)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Ir a Fondo de Caja</a>
+          </div>
+        )}
+
+        {/* ===== TAB COBROS ===== */}
+        {tab==='cobros'&&(
+          <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t2)',fontSize:13}}>
+            <div style={{fontSize:36,marginBottom:12}}>📋</div>
+            <div style={{fontSize:15,fontWeight:600,marginBottom:6}}>Cobros Pendientes</div>
+            <div>Gestiona los cobros pendientes desde el modulo dedicado</div>
+            <a href="/cobros" style={{display:'inline-block',marginTop:16,padding:'10px 24px',borderRadius:9,border:'none',background:'var(--blue)',color:'#fff',fontSize:14,fontWeight:600,textDecoration:'none'}}>Ir a Cobros</a>
+          </div>
+        )}
+
+        {/* ===== TAB HISTORIAL ===== */}
         {tab==='historial'&&(
           <div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
               {[
                 {lbl:'Ventas del mes',val:fmt(historial.reduce((s,a)=>s+(a.golan?.totalVentas||0),0)),color:'var(--blue)'},
                 {lbl:'Efectivo neto',val:fmt(historial.reduce((s,a)=>s+(a.ef_neto||0),0)),color:'var(--green)'},
-                {lbl:'Días registrados',val:historial.length,color:'var(--t2)'},
-                {lbl:'Días con diferencia',val:historial.filter(a=>(a.dif_ef||0)!==0).length,color:'var(--red)'},
+                {lbl:'Dias registrados',val:historial.length,color:'var(--t2)'},
+                {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_ef||0)!==0).length,color:'var(--red)'},
               ].map((k,i)=>(
                 <div key={i} style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:10,padding:'14px 16px'}}>
                   <div style={{fontSize:10,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5}}>{k.lbl}</div>
@@ -275,23 +645,24 @@ export default function Arqueo() {
               <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                   <thead><tr style={{background:'var(--s2)'}}>
-                    {['Fecha','Ventas Golan','Ef. Golan','Ef. Contado','Diferencia','SumUp','Estado'].map(h=>(
+                    {['Fecha','Ventas Golan','Ef. Golan','Ef. Neto','Diferencia','SumUp','Guardado por','Estado'].map(h=>(
                       <th key={h} style={{padding:'10px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
-                    {loading?<tr><td colSpan={7} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Cargando...</td></tr>:
-                    historial.length===0?<tr><td colSpan={7} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin arqueos este mes</td></tr>:
+                    {histLoading?<tr><td colSpan={8} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Cargando...</td></tr>:
+                    historial.length===0?<tr><td colSpan={8} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin arqueos este mes</td></tr>:
                     historial.map((a,i)=>{
                       const dif=a.dif_ef||0
                       return (
                         <tr key={a.id} style={{borderTop:'1px solid var(--bdr)',background:dif!==0?'var(--rbg)':i%2===0?'#fff':'var(--s2)'}}>
                           <td style={{padding:'8px 12px',fontWeight:500}}>{a.fecha}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalVentas||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalEfectivo||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.ef_total||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'✓'}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.ef_neto||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'OK'}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.sumup||0)}</td>
+                          <td style={{padding:'8px 12px',color:'var(--t2)'}}>{a.usuario_nombre}</td>
                           <td style={{padding:'8px 12px'}}>
                             <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:dif!==0?'var(--rbg)':'var(--gbg)',color:dif!==0?'var(--red)':'var(--green)'}}>
                               {dif!==0?'Con diferencia':'Cuadrado'}
@@ -306,6 +677,7 @@ export default function Arqueo() {
             </div>
           </div>
         )}
+
       </main>
     </>
   )
