@@ -51,6 +51,35 @@ export default function Arqueo() {
   
   // Obs
   const [obs, setObs] = useState('')
+
+  // Borrador automatico en localStorage
+  const BORRADOR_KEY = 'bc_arqueo_borrador'
+  useEffect(()=>{
+    const b = localStorage.getItem(BORRADOR_KEY)
+    if(b){
+      try{
+        const d = JSON.parse(b)
+        if(d.fecha && confirm('Hay un arqueo en borrador del '+d.fecha+'. Deseas recuperarlo?')){
+          if(d.fecha) setFecha(d.fecha)
+          if(d.billetes1) setBilletes1(d.billetes1)
+          if(d.billetes2) setBilletes2(d.billetes2)
+          if(d.sumupReal) setSumupReal(d.sumupReal)
+          if(d.transfReal) setTransfReal(d.transfReal)
+          if(d.obs) setObs(d.obs)
+          if(d.cxc) setCxc(d.cxc)
+          if(d.gastos) setGastos(d.gastos)
+          if(d.devs) setDevs(d.devs)
+        }
+      }catch(e){}
+    }
+  },[])
+
+  // Guardar borrador cada vez que cambia algo
+  useEffect(()=>{
+    if(!fecha) return
+    const b = {fecha,billetes1,billetes2,sumupReal,transfReal,obs,cxc,gastos,devs}
+    localStorage.setItem(BORRADOR_KEY, JSON.stringify(b))
+  },[fecha,billetes1,billetes2,sumupReal,transfReal,obs,cxc,gastos,devs])
   
   // Historial
   const [historial, setHistorial] = useState([])
@@ -181,12 +210,8 @@ export default function Arqueo() {
   // Calculos
   const ef1 = BILLETES.reduce((s,b)=>s+(parseInt(billetes1[b]||0)*b),0)
   const ef2 = BILLETES.reduce((s,b)=>s+(parseInt(billetes2[b]||0)*b),0)
-  const fondo1n = parseFloat(fondo1)||0
-  const fondo2n = parseFloat(fondo2)||0
-  const dep1 = Math.max(0, ef1-fondo1n)
-  const dep2 = Math.max(0, ef2-fondo2n)
   const efTotal = ef1+ef2
-  const efNeto = dep1+dep2
+  const efNeto = efTotal
   const difEf = efNeto - golan.ef
   const totalConv = convBienestar+convSindicato
   const difConv = golan.cheque - totalConv
@@ -219,6 +244,7 @@ export default function Arqueo() {
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
       if(error) throw error
+      localStorage.removeItem(BORRADOR_KEY)
       setGuardado(true)
       cargarHistorial(session)
       setTimeout(()=>setGuardado(false),3000)
@@ -373,8 +399,7 @@ export default function Arqueo() {
                         </div>
                       ))}
                       <div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--bdr)'}}>
-                        <div style={{fontSize:11,color:'var(--t2)',marginBottom:4}}>Fondo de Caja</div>
-                        <input type="number" value={f} onChange={e=>sf(e.target.value)} placeholder="0" style={{...inp,width:'100%',fontFamily:'var(--mono)',fontSize:14,fontWeight:600}} />
+                        <div style={{fontSize:11,color:'var(--t3)',marginBottom:4}}>El fondo de caja se gestiona en el modulo Fondo de Caja</div>
                       </div>
                       <div style={{marginTop:10,display:'flex',justifyContent:'space-between',padding:'8px 0',fontWeight:600}}>
                         <span style={{fontSize:12,color:'var(--t2)'}}>Total a Depositar</span>

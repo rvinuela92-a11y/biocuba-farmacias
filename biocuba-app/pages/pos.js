@@ -71,9 +71,15 @@ export default function POS() {
     if(bloq){ setResultadoB({bloqueado:true,nombre:bloq.nombre,motivo:bloq.motivo}); return }
     const socio=SOCIOS.find(s=>normRut(s.rut)===rut)
     if(!socio){ setResultadoB({noEncontrado:true,rut}); return }
-    const {data:ventas} = await supabase.from('bienestar_ventas').select('monto').eq('rut',socio.rut).eq('mes',mes())
+    const {data:ventas,error:errV} = await supabase.from('bienestar_ventas').select('monto').eq('rut',socio.rut).eq('mes',mes())
     const usado=(ventas||[]).reduce((s,v)=>s+v.monto,0)
-    setSocioActual({...socio,usado,disponible:CUPO-usado})
+    const disponible = CUPO - usado
+    if(disponible<=0){
+      setSocioActual(null)
+      setResultadoB({bloqueado:true,nombre:socio.nombre,motivo:'Cupo mensual agotado — ha utilizado $'+usado.toLocaleString('es-CL')+' de $'+CUPO.toLocaleString('es-CL')})
+      return
+    }
+    setSocioActual({...socio,usado,disponible})
     setResultadoB({ok:true})
     setFolioB(''); setMontoB('')
   }
