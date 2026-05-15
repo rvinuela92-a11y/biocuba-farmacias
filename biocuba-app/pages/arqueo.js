@@ -111,7 +111,7 @@ export default function Arqueo() {
       const txt = new TextDecoder('iso-8859-1').decode(buf)
       const lines = txt.replace(/\r/g,'').split('\n').filter(l=>l.trim())
       lines.forEach(line=>{
-        const c = line.split(';')
+        const c = line.split(',')
         if(c.length<16) return
         const pm = s => parseFloat((s||'').replace(/[^0-9.-]/g,''))||0
         const tipo = (c[2]||c[5]||'').trim()
