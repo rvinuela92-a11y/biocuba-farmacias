@@ -114,49 +114,55 @@ export default function Arqueo() {
         s = (s||'').toString().replace(/[$]/g,'').replace(/\./g,'').replace(/,/g,'').replace(/[()]/g,'').trim()
         return Math.abs(parseFloat(s)||0)
       }
-      const inc = (s,kw) => s.toLowerCase().includes(kw.toLowerCase())
+      const inc = (s,kw) => (s||'').toLowerCase().includes(kw.toLowerCase())
       lines.forEach(line=>{
         const c = line.split(',')
-        // Vendedores: id numerico seguido de nombre
-        c.forEach((col,i)=>{
-          const v = col.trim()
-          if(v && /^\d+$/.test(v) && i+1<c.length){
-            const nombre = c[i+1].trim()
-            if(nombre.length>2 && !/^\d/.test(nombre) && !inc(nombre,'tipo') && !inc(nombre,'total') && !inc(nombre,'monto') && !inc(nombre,'cantidad') && !inc(nombre,'cierre') && !inc(nombre,'apertura') && !inc(nombre,'informe')){
-              vendMap[v]={id:v,nombre}
-            }
+        // Vendedores — col[14] id numerico, col[15] nombre
+        if(c.length>15){
+          const vid = (c[14]||'').trim()
+          const vnombre = (c[15]||'').trim()
+          if(vid && /^\d+$/.test(vid) && vnombre.length>2 && !/^\d/.test(vnombre) && !inc(vnombre,'nombre') && !inc(vnombre,'tipo')){
+            vendMap[vid]={id:vid,nombre:vnombre}
           }
-        })
-        // Tipo en col[2] - formato reporte Golan
+        }
+        // SECCION VENTAS: col[2]=tipo, col[8]=monto
         const tipo2 = (c[2]||'').trim()
-        if(tipo2 && !inc(tipo2,'total') && !inc(tipo2,'tipo')){
+        if(tipo2 && c.length>=9){
           const m = pm(c[8])
-          if(m>0){
-            if(inc(tipo2,'efectivo') && !inc(line,'devoluci')) totalEf=Math.max(totalEf,m)
+          if(m>0 && !inc(tipo2,'total') && !inc(tipo2,'tipo') && !inc(tipo2,'cantidad') && !inc(tipo2,'monto') && !inc(tipo2,'guia')){
+            if(inc(tipo2,'efectivo')) totalEfBruto=Math.max(totalEfBruto,m)
             else if(inc(tipo2,'cheque')) totalCheque=Math.max(totalCheque,m)
             else if(inc(tipo2,'tarjeta') && inc(tipo2,'b')) totalDeb=Math.max(totalDeb,m)
             else if(inc(tipo2,'tarjeta') && inc(tipo2,'c')) totalCred=Math.max(totalCred,m)
-            else if(inc(tipo2,'transferencia')) totalTransf=Math.max(totalTransf,m)
+            else if(inc(tipo2,'transfer')) totalTransf=Math.max(totalTransf,m)
           }
         }
-        // Efectivo neto desde Totales Tipo Pago col[12]
+        // SECCION TOTALES TIPO PAGO: col[12]=tipo, col[16]=monto neto
         const tipo12 = (c[12]||'').trim()
-        if(inc(tipo12,'efectivo')){
+        if(tipo12 && c.length>=17){
           const m = pm(c[16])
-          if(m>0) totalEf=m
-        }
-        // Devoluciones en efectivo — col[7] o col[8] en seccion Devoluciones
-        if(inc(line,'devoluci') && !inc(line,'total') && !inc(line,'tipo')){
-          for(let i=3;i<Math.min(c.length,10);i++){
-            const m=pm(c[i]); if(m>0&&m<500000){totalDev=Math.max(totalDev,m);break}
+          if(m>0){
+            if(inc(tipo12,'efectivo')){
+              totalEf=m
+              // Devoluciones estan en col[7] de esta misma linea
+              const dev = pm(c[7])
+              if(dev>0) totalDev=Math.max(totalDev,dev)
+            }
+            else if(inc(tipo12,'cheque')) totalCheque=m
+            else if(inc(tipo12,'tarjeta') && inc(tipo12,'b')) totalDeb=m
+            else if(inc(tipo12,'tarjeta') && inc(tipo12,'c')) totalCred=m
+            else if(inc(tipo12,'transfer')) totalTransf=m
           }
         }
-        // Total ventas
-        if(inc(line,'total ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
-          c.forEach(col=>{ const m=pm(col); if(m>500000) totalVentas=Math.max(totalVentas,m) })
+        // TOTAL VENTAS: col[24]
+        if(inc(line,'Total Ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
+          const m = pm(c[24])
+          if(m>500000) totalVentas=Math.max(totalVentas,m)
         }
       })
     }
+    // Si no encontramos efectivo neto, usar bruto
+    if(totalEf===0) totalEf=totalEfBruto
     setGolan(prev=>({
       ef: prev.ef+totalEf,
       efBruto: prev.efBruto+totalEfBruto,
@@ -165,10 +171,10 @@ export default function Arqueo() {
       transf: prev.transf+totalTransf,
       cheque: prev.cheque+totalCheque,
       dev: prev.dev+totalDev,
-      totalVentas: prev.totalVentas+totalVentas,
+      totalVentas: prev.totalVentas+(totalVentas||totalEfBruto+totalDeb+totalCred+totalTransf+totalCheque),
       vendedores: [...(prev.vendedores||[]), ...Object.values(vendMap)]
     }))
-    if(caja===1) setGolanCargado1(true)
+        if(caja===1) setGolanCargado1(true)
     if(caja===2) setGolanCargado2(true)
   }
 
