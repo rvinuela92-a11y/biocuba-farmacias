@@ -274,6 +274,7 @@ export default function Arqueo() {
       // Si se edito y cambio la fecha, borrar el arqueo original
       if(editandoId && editandoId !== payload.id){
         await supabase.from('arqueos').delete().eq('id', editandoId)
+        await supabase.from('depositos').delete().eq('id', 'dep_'+editandoId)
         setEditandoId(null)
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
