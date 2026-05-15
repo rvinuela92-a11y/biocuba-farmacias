@@ -172,14 +172,19 @@ export default function Arqueo() {
             if(inc(tipo12,'efectivo')){
               totalEf=m
               // Devoluciones estan en col[7] de esta misma linea
-              const dev = pm(c[7])
-              if(dev>0) totalDev=Math.max(totalDev,dev)
+              // NO leer dev aqui — las devoluciones estan en seccion separada
             }
             else if(inc(tipo12,'cheque')) totalCheque=m
             else if(inc(tipo12,'tarjeta') && inc(tipo12,'b')) totalDeb=m
             else if(inc(tipo12,'tarjeta') && inc(tipo12,'c')) totalCred=m
             else if(inc(tipo12,'transfer')) totalTransf=m
           }
+        }
+        // DEVOLUCIONES: linea donde col[1]='Efectivo' (seccion Devoluciones del CSV)
+        // Formato: ,Efectivo,,,3,,,$90.920,,,,,Efectivo,,,,$452.020,
+        const tipo1 = (c[1]||'').trim()
+        if(inc(tipo1,'efectivo') && pm(c[7])>0 && !inc((c[2]||''),'efectivo')){
+          totalDev = Math.max(totalDev, pm(c[7]))
         }
         // TOTAL VENTAS: col[24]
         if(inc(line,'Total Ventas') && !inc(line,'abono') && !inc(line,'devoluci')){
@@ -383,7 +388,7 @@ export default function Arqueo() {
               </div>
               <div style={pasoBody}>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
-                  {[{n:1,bs:billetes1,sb:setBilletes1,f:fondo1,sf:setFondo1,ef:ef1,dep:dep1},{n:2,bs:billetes2,sb:setBilletes2,f:fondo2,sf:setFondo2,ef:ef2,dep:dep2}].map(({n,bs,sb,f,sf,ef,dep})=>(
+                  {[{n:1,bs:billetes1,sb:setBilletes1,ef:ef1,dep:dep1},{n:2,bs:billetes2,sb:setBilletes2,ef:ef2,dep:dep2}].map(({n,bs,sb,ef,dep})=>(
                     <div key={n} style={{background:'var(--s2)',borderRadius:10,padding:14}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
                         <span style={{fontSize:13,fontWeight:600}}>Caja {n}</span>
