@@ -7,7 +7,7 @@ import Head from 'next/head'
 const fmt = n => '$' + Math.round(n||0).toLocaleString('es-CL')
 const hoy = () => new Date().toISOString().split('T')[0]
 const mes = () => new Date().toISOString().slice(0,7)
-const BILLETES = [20000,10000,5000,1000,500,100,50,10]
+const BILLETES = [20000,10000,5000,2000,1000,500,100,50,10]
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const CATS_GASTO = {sencilla:'Fondo de cambio / Sencilla',limpieza:'Limpieza y Aseo',oficina:'Artículos de Oficina',mant_local:'Reparaciones y Mantención Local',mant_equipos:'Mantención de Equipos',otros:'Otros'}
@@ -686,7 +686,7 @@ export default function Arqueo() {
             {guardado&&<div style={{background:'var(--gbg)',border:'2px solid var(--gbdr)',borderRadius:10,padding:14,textAlign:'center',fontSize:14,fontWeight:600,color:'var(--green)',marginBottom:14}}>Arqueo guardado correctamente en Supabase</div>}
 
             <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginBottom:20}}>
-              <button onClick={()=>{ setGolan({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]}); setBilletes1({}); setBilletes2({}); setFondo1(''); setFondo2(''); setSumupReal(''); setTransfReal(''); setCxc([]); setGastos([]); setDevs([]); setObs(''); setDifCausa(''); setDifResp(''); setDifDet(''); setDifDescontar(false); setGolanCargado1(false); setGolanCargado2(false) }}
+              <button onClick={()=>{ setGolan({ef:0,efBruto:0,deb:0,cred:0,transf:0,cheque:0,dev:0,totalVentas:0,vendedores:[]}); setGolanCargado1(false); setGolanCargado2(false); setBilletes1({}); setBilletes2({}); setFondo1(''); setFondo2(''); setSumupReal(''); setTransfReal(''); setCxc([]); setGastos([]); setDevs([]); setObs(''); setDifCausa(''); setDifResp(''); setDifDet(''); setDifDescontar(false); setGolanCargado1(false); setGolanCargado2(false) }}
                 style={{padding:'10px 20px',borderRadius:9,border:'1px solid var(--bdr)',background:'transparent',color:'var(--t2)',cursor:'pointer',fontSize:13}}>Limpiar</button>
               <button onClick={guardar} disabled={guardando} style={{padding:'12px 28px',borderRadius:9,border:'none',background:'var(--blue)',color:'#fff',fontSize:15,fontWeight:600,opacity:guardando?.7:1,cursor:'pointer'}}>
                 {guardando?'Guardando...':'Guardar Arqueo'}
@@ -871,7 +871,23 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.sumup||0)}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)'}}>{a.usuario_nombre}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.obs||'—'}</td>
-                          <td style={{padding:'8px 12px'}}>
+                          <td style={{padding:'8px 12px',display:'flex',gap:6,alignItems:'center'}}>
+                            <button onClick={()=>{
+                              if(!confirm('Editar el arqueo del '+a.fecha+'? Podras corregir los datos y volver a guardar.')) return
+                              setFecha(a.fecha)
+                              setObs(a.obs||'')
+                              setSumupReal(String(a.sumup||''))
+                              setTransfReal(String(a.transf_real||''))
+                              setArrastre(String(a.arrastre||0))
+                              setArrastreObs(a.arrastre_obs||'')
+                              setCxc(a.cxc||[])
+                              setGastos(a.gastos||[])
+                              setDevs(a.devs||[])
+                              setTab('ingresar')
+                              window.scrollTo(0,0)
+                            }} style={{padding:'3px 8px',borderRadius:6,border:'1px solid var(--bdr)',background:'var(--s2)',color:'var(--t2)',fontSize:11,cursor:'pointer'}}>
+                              Editar
+                            </button>
                             <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:dif!==0?'var(--rbg)':'var(--gbg)',color:dif!==0?'var(--red)':'var(--green)'}}>
                               {dif!==0?'Con diferencia':'Cuadrado'}
                             </span>
