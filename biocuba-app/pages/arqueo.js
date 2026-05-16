@@ -799,8 +799,10 @@ export default function Arqueo() {
                         if(!bancoDeposito){alert('Selecciona el banco antes de confirmar');return}
                         if(!confirm('Confirmar deposito de '+fmt(seleccionados.reduce((s,id)=>s+(depositos.find(d=>d.id===id)?.monto||0),0))+' en '+bancoDeposito+'?'))return
                         const diasInc=seleccionados.map(id=>depositos.find(d=>d.id===id)?.fecha_dep).filter(Boolean)
+                        const grupoId='dep_grp_'+Date.now()
+                        const montoTotal=seleccionados.reduce((s,id)=>s+(depositos.find(d=>d.id===id)?.monto||0),0)
                         for(const id of seleccionados){
-                          await supabase.from('depositos').update({confirmado:true,banco:bancoDeposito,fecha_confirmacion:hoy(),dias_incluidos:diasInc}).eq('id',id)
+                          await supabase.from('depositos').update({confirmado:true,banco:bancoDeposito,fecha_confirmacion:hoy(),dias_incluidos:diasInc,grupo_id:grupoId,monto_total_deposito:montoTotal}).eq('id',id)
                         }
                         setSeleccionados([])
                         setBancoDeposito('')
@@ -896,43 +898,70 @@ export default function Arqueo() {
               <div>
                 {depositos.length===0?
                   <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos registrados este mes</div>:
-                  depositos.map((d,i)=>(
-                    <div key={d.id||i} style={{background:d.confirmado?'var(--gbg)':'#fff',border:`1px solid ${d.confirmado?'var(--gbdr)':'var(--bdr)'}`,borderRadius:12,padding:16,marginBottom:10}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>{d.banco||'Sin banco'}</div>
-                          <div style={{fontSize:11,color:'var(--t2)'}}>Confirmado el {d.fecha_confirmacion||'—'}</div>
+                  (()=>{
+                    // Agrupar depositos confirmados por grupo_id
+                    const grupos = {}
+                    const sinGrupo = []
+                    depositos.forEach(d=>{
+                      if(!d.confirmado){ return }
+                      if(d.grupo_id){
+                        if(!grupos[d.grupo_id]) grupos[d.grupo_id]=[]
+                        grupos[d.grupo_id].push(d)
+                      } else {
+                        sinGrupo.push(d)
+                      }
+                    })
+                    const tarjetas = [
+                      ...Object.values(grupos).map(grp=>({
+                        ids: grp.map(d=>d.id),
+                        banco: grp[0].banco,
+                        fecha_confirmacion: grp[0].fecha_confirmacion,
+                        monto_total: grp[0].monto_total_deposito || grp.reduce((s,d)=>s+d.monto,0),
+                        dias: grp.map(d=>({fecha:d.fecha_dep,monto:d.monto})),
+                        grupo_id: grp[0].grupo_id,
+                        multiple: true
+                      })),
+                      ...sinGrupo.map(d=>({
+                        ids:[d.id],banco:d.banco,fecha_confirmacion:d.fecha_confirmacion,
+                        monto_total:d.monto,dias:[{fecha:d.fecha_dep,monto:d.monto}],
+                        grupo_id:null,multiple:false
+                      }))
+                    ]
+                    return tarjetas.map((t,i)=>(
+                      <div key={t.grupo_id||t.ids[0]||i} style={{background:'var(--gbg)',border:'1px solid var(--gbdr)',borderRadius:12,padding:16,marginBottom:10}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>{t.banco||'Sin banco'}</div>
+                            <div style={{fontSize:11,color:'var(--t2)'}}>Confirmado el {t.fecha_confirmacion||'—'}</div>
+                          </div>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontFamily:'var(--mono)',fontSize:20,fontWeight:700,color:'var(--green)'}}>{fmt(t.monto_total)}</div>
+                            <div style={{fontSize:11,color:'var(--t3)'}}>Total depositado</div>
+                          </div>
                         </div>
-                        <div style={{textAlign:'right'}}>
-                          <div style={{fontFamily:'var(--mono)',fontSize:18,fontWeight:700,color:'var(--green)'}}>{fmt(d.monto)}</div>
-                          <div style={{fontSize:11,color:'var(--t3)'}}>Total depositado</div>
-                        </div>
-                      </div>
-                      {d.dias_incluidos?.length>0&&(
                         <div style={{background:'rgba(0,0,0,.04)',borderRadius:8,padding:'10px 12px',marginBottom:10}}>
-                          <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--t2)',marginBottom:6}}>Dias incluidos en este deposito</div>
-                          {d.dias_incluidos.map(fecha=>{
-                            const dep = depositos.find(x=>x.fecha_dep===fecha&&x.id!==d.id)||{monto:0}
-                            return (
-                              <div key={fecha} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'3px 0',borderBottom:'1px solid rgba(0,0,0,.06)'}}>
-                                <span style={{color:'var(--t2)'}}>{fecha}</span>
-                                <span style={{fontFamily:'var(--mono)',fontWeight:500}}>{fmt(d.monto/d.dias_incluidos.length)}</span>
-                              </div>
-                            )
-                          })}
+                          <div style={{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--t2)',marginBottom:6}}>
+                            {t.multiple?'Dias incluidos en este deposito':'Dia del deposito'}
+                          </div>
+                          {t.dias.map(({fecha,monto})=>(
+                            <div key={fecha} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'4px 0',borderBottom:'1px solid rgba(0,0,0,.06)'}}>
+                              <span style={{color:'var(--t2)'}}>{fecha}</span>
+                              <span style={{fontFamily:'var(--mono)',fontWeight:500}}>{fmt(monto)}</span>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      {d.confirmado&&(
                         <button onClick={async()=>{
                           if(!confirm('Desmarcar este deposito para poder editarlo?')) return
-                          await supabase.from('depositos').update({confirmado:false,banco:'',fecha_confirmacion:null,dias_incluidos:null}).eq('id',d.id)
+                          for(const id of t.ids){
+                            await supabase.from('depositos').update({confirmado:false,banco:'',fecha_confirmacion:null,dias_incluidos:null,grupo_id:null}).eq('id',id)
+                          }
                           cargarDepositos(session)
                         }} style={{padding:'6px 14px',borderRadius:7,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',fontSize:12,cursor:'pointer'}}>
                           Desmarcar y editar
                         </button>
-                      )}
-                    </div>
-                  ))
+                      </div>
+                    ))
+                  })()
                 }
               </div>
             )}
