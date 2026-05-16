@@ -161,6 +161,7 @@ export default function Arqueo() {
     const acum = conDif.reduce((s,r)=>s+(r.dif_neta||r.dif_ef||0),0)
     setArrastresAcum(conDif)
     setTotalArrastre(acum)
+    if(acum!==0) setArrastre(String(-acum))
   }
 
   async function parsearCSVMultiple(files, caja){
