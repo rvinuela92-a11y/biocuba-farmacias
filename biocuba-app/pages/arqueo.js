@@ -876,6 +876,7 @@ export default function Arqueo() {
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>FECHA</div>
                           <div style={{fontSize:13,fontWeight:500}}>{dep.fecha_dep}</div>
                         </div>
+                        <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:'var(--blue)',textAlign:'right'}}>{fmt(dep.monto)}</div>
 
 
                         <div style={{display:'flex',flexDirection:'column',gap:6}}>
