@@ -831,15 +831,7 @@ export default function Arqueo() {
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>FECHA</div>
                           <div style={{fontSize:13,fontWeight:500}}>{dep.fecha_dep}</div>
                         </div>
-                        <div>
-                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
-                          <input type="number" value={dep.monto||''} onChange={async e=>{
-                            const nuevos=[...depositos]
-                            nuevos[i]={...nuevos[i],monto:parseFloat(e.target.value)||0}
-                            setDepositos(nuevos)
-                            await supabase.from('depositos').update({monto:parseFloat(e.target.value)||0}).eq('id',dep.id)
-                          }} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--mono)',fontWeight:600}} />
-                        </div>
+
 
                         <div style={{display:'flex',flexDirection:'column',gap:6}}>
                           <button onClick={async()=>{
@@ -850,13 +842,7 @@ export default function Arqueo() {
                           }} style={{padding:'7px 12px',borderRadius:7,border:'none',background:'var(--green)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>
                             Confirmar
                           </button>
-                          <button onClick={async()=>{
-                            if(!confirm('Eliminar este deposito pendiente?'))return
-                            await supabase.from('depositos').delete().eq('id',dep.id)
-                            cargarDepositos(session)
-                          }} style={{padding:'7px 12px',borderRadius:7,border:'1px solid var(--rbdr)',background:'var(--rbg)',color:'var(--red)',fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            Eliminar
-                          </button>
+                          
                         </div>
                       </div>
                     </div>
