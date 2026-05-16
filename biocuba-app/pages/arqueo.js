@@ -849,15 +849,12 @@ export default function Arqueo() {
                             await supabase.from('depositos').update({monto:parseFloat(e.target.value)||0}).eq('id',dep.id)
                           }} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--mono)',fontWeight:600}} />
                         </div>
-                        <div>
-                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>OBSERVACION</div>
-                          <input value={dep.obs||''} onChange={async e=>{
-                            const nuevos=[...depositos]
-                            nuevos[i]={...nuevos[i],obs:e.target.value}
-                            setDepositos(nuevos)
-                            await supabase.from('depositos').update({obs:e.target.value}).eq('id',dep.id)
-                          }} placeholder="opcional" style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
-                        </div>
+                        {seleccionados.length===1&&seleccionados.includes(dep.id)&&(
+                          <div>
+                            <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>BANCO</div>
+                            <input list="bancos-dep" value={bancoDeposito} onChange={e=>setBancoDeposito(e.target.value)} placeholder="Seleccionar banco..." style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bbdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)',background:'var(--bbg)'}} />
+                          </div>
+                        )}
                         <div style={{display:'flex',flexDirection:'column',gap:6}}>
                           <button onClick={async()=>{
                             if(!dep.banco){alert('Ingresa el banco antes de confirmar');return}
