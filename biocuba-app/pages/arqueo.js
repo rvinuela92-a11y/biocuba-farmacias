@@ -153,7 +153,7 @@ export default function Arqueo() {
 
   async function cargarDifPendientes(s){
     const hoyDate = hoy()
-    const {data} = await supabase.from('arqueos').select('fecha,dif_ef,motivo').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0)
+    const {data} = await supabase.from('arqueos').select('fecha,dif_ef,dif_neta,motivo,arrastre').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0).neq('dif_neta',0)
     const sinMotivo = (data||[]).filter(r=>!r.motivo?.causa)
     setDifPendientes(sinMotivo)
     // Calcular arrastre acumulado de todos los dias con diferencia sin netear
