@@ -838,7 +838,7 @@ export default function Arqueo() {
                             nuevos[i]={...nuevos[i],banco:e.target.value}
                             setDepositos(nuevos)
                             await supabase.from('depositos').update({banco:e.target.value}).eq('id',dep.id)
-                          }} list="bancos-list" placeholder="Seleccionar banco..." style={{fontSize:13,padding:"6px 10px",border:"1.5px solid var(--bdr)",borderRadius:7,outline:"none",width:"100%",fontFamily:"var(--font)"}} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                          }} list="bancos-dep" placeholder="Seleccionar banco..." style={{fontSize:13,padding:"6px 10px",border:"1.5px solid var(--bdr)",borderRadius:7,outline:"none",width:"100%",fontFamily:"var(--font)"}} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
                         </div>
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
@@ -879,7 +879,7 @@ export default function Arqueo() {
                     </div>
                   ))
                 }
-                <datalist id="bancos-list">
+                <datalist id="bancos-dep">
                   <option value="Banco de Chile" />
                   <option value="Banco Santander" />
                   <option value="Banco BICE" />
