@@ -157,9 +157,9 @@ export default function Arqueo() {
     const sinMotivo = (data||[]).filter(r=>!r.motivo?.causa)
     setDifPendientes(sinMotivo)
     // Calcular arrastre acumulado de todos los dias con diferencia sin netear
-    const conDif = (data||[]).filter(r=>(r.dif_ef||0)!==0)
-    // Usar dif_neta solo si es distinto de 0, sino usar dif_ef
-    const acum = conDif.reduce((s,r)=>s+((r.dif_neta&&r.dif_neta!==0)?r.dif_neta:(r.dif_ef||0)),0)
+    // Solo dias donde dif_neta NO es exactamente 0 (null = nunca conciliado, != 0 = pendiente)
+    const conDif = (data||[]).filter(r=>r.dif_neta!==0)
+    const acum = conDif.reduce((s,r)=>s+(r.dif_neta!==null&&r.dif_neta!==undefined ? r.dif_neta : (r.dif_ef||0)),0)
     setArrastresAcum(conDif)
     setTotalArrastre(acum)
     if(acum!==0) setArrastre(String(-acum))
