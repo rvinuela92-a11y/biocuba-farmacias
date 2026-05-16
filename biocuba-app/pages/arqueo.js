@@ -397,7 +397,7 @@ export default function Arqueo() {
               </div>
             </div>
             <div style={{fontSize:12,color:'var(--t2)',marginBottom:8}}>
-              Considera este monto como arrastre al registrar el arqueo de hoy
+              Considera este monto como arrastre al registrar el arqueo de hoy — ya fue pre-cargado en el campo de arrastre
             </div>
             <div style={{background:'rgba(0,0,0,.04)',borderRadius:8,padding:'8px 12px'}}>
               {arrastresAcum.map(a=>(
