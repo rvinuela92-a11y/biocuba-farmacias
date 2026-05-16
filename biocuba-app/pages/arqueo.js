@@ -628,7 +628,7 @@ export default function Arqueo() {
               </div>
               {gastos.map((g,i)=>(
                 <div key={g.id||i} style={{background:'var(--s2)',border:'1px solid var(--bdr)',borderRadius:8,padding:12,marginBottom:8}}>
-                  <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end',marginBottom:8}}>
+                  <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto auto',gap:10,alignItems:'end',marginBottom:8}}>
                     <div>
                       <label style={lbl}>Tipo</label>
                       <select value={g.tipo||'boleta'} onChange={e=>{const v=[...gastos];v[i]={...v[i],tipo:e.target.value};setGastos(v)}} style={{...inp,width:100,background:'#fff',fontSize:12}}>
@@ -767,7 +767,7 @@ export default function Arqueo() {
             {depTab==='pendientes'&&(
               <div>
                 {/* Panel de confirmacion cuando hay seleccionados */}
-                {seleccionados.length>0&&(
+                {seleccionados.length>=1&&(
                   <div style={{background:'var(--bbg)',border:'2px solid var(--bbdr)',borderRadius:12,padding:16,marginBottom:16}}>
                     <div style={{fontSize:13,fontWeight:600,color:'var(--blue)',marginBottom:10}}>
                       Confirmar deposito — {seleccionados.length} dia(s) seleccionado(s)
@@ -849,12 +849,7 @@ export default function Arqueo() {
                             await supabase.from('depositos').update({monto:parseFloat(e.target.value)||0}).eq('id',dep.id)
                           }} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--mono)',fontWeight:600}} />
                         </div>
-                        {seleccionados.length===1&&seleccionados.includes(dep.id)&&(
-                          <div>
-                            <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>BANCO</div>
-                            <input list="bancos-dep" value={bancoDeposito} onChange={e=>setBancoDeposito(e.target.value)} placeholder="Seleccionar banco..." style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bbdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)',background:'var(--bbg)'}} />
-                          </div>
-                        )}
+
                         <div style={{display:'flex',flexDirection:'column',gap:6}}>
                           <button onClick={async()=>{
                             if(!dep.banco){alert('Ingresa el banco antes de confirmar');return}
