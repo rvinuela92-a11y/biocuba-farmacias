@@ -148,11 +148,19 @@ export default function Arqueo() {
     setHistLoading(false)
   }
 
+  const [arrastresAcum, setArrastresAcum] = useState([])
+  const [totalArrastre, setTotalArrastre] = useState(0)
+
   async function cargarDifPendientes(s){
     const hoyDate = hoy()
     const {data} = await supabase.from('arqueos').select('fecha,dif_ef,motivo').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0)
     const sinMotivo = (data||[]).filter(r=>!r.motivo?.causa)
     setDifPendientes(sinMotivo)
+    // Calcular arrastre acumulado de todos los dias con diferencia sin netear
+    const conDif = (data||[]).filter(r=>(r.dif_ef||0)!==0)
+    const acum = conDif.reduce((s,r)=>s+(r.dif_neta||r.dif_ef||0),0)
+    setArrastresAcum(conDif)
+    setTotalArrastre(acum)
   }
 
   async function parsearCSVMultiple(files, caja){
@@ -376,7 +384,34 @@ export default function Arqueo() {
         {/* ===== TAB INGRESAR ===== */}
         {tab==='ingresar'&&(
           <div>
-            {/* AVISO ARQUEO YA GUARDADO */}
+            {/* ARRASTRES PENDIENTES DE DIAS ANTERIORES */}
+        {arrastresAcum.length>0&&(
+          <div style={{background:'var(--abg)',border:'1px solid var(--abdr)',borderRadius:10,padding:'14px 16px',marginBottom:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div style={{fontSize:13,fontWeight:600,color:'var(--amber)'}}>
+                Diferencias acumuladas de dias anteriores
+              </div>
+              <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:totalArrastre>0?'var(--amber)':totalArrastre<0?'var(--red)':'var(--green)'}}>
+                {totalArrastre>0?'+':''}{fmt(totalArrastre)}
+              </div>
+            </div>
+            <div style={{fontSize:12,color:'var(--t2)',marginBottom:8}}>
+              Considera este monto como arrastre al registrar el arqueo de hoy
+            </div>
+            <div style={{background:'rgba(0,0,0,.04)',borderRadius:8,padding:'8px 12px'}}>
+              {arrastresAcum.map(a=>(
+                <div key={a.id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'3px 0',borderBottom:'1px solid rgba(0,0,0,.06)'}}>
+                  <span style={{color:'var(--t2)'}}>{a.fecha}</span>
+                  <span style={{fontFamily:'var(--mono)',fontWeight:600,color:(a.dif_neta||a.dif_ef||0)>0?'var(--amber)':(a.dif_neta||a.dif_ef||0)<0?'var(--red)':'var(--green)'}}>
+                    {(a.dif_neta||a.dif_ef||0)>0?'+':''}{fmt(a.dif_neta||a.dif_ef||0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AVISO ARQUEO YA GUARDADO */}
         {arqueoHoy&&(
           <div style={{background:'var(--gbg)',border:'2px solid var(--gbdr)',borderRadius:10,padding:'12px 16px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
