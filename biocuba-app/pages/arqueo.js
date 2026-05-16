@@ -217,7 +217,17 @@ export default function Arqueo() {
     // Si no encontramos efectivo neto, usar bruto
     if(totalEf===0) totalEf=totalEfBruto
     // Guardar datos de esta caja por separado
-    const datosCaja = {ef:totalEf,efBruto:totalEfBruto,deb:totalDeb,cred:totalCred,transf:totalTransf,cheque:totalCheque,dev:totalDev,totalVentas,vendedores:Object.values(vendMap)}
+    // Extraer metadata de la caja: numero, cierre Z, horarios
+    let nroCaja='', nroCierre='', apertura='', cierreHora='', fechaCSV=''
+    lines.forEach(line=>{
+      const c=line.split(',')
+      if(c[0].trim().match(/^\d+$/) && c[3].trim().match(/^\d+$/)){
+        nroCaja=c[0].trim(); nroCierre=c[3].trim()
+        apertura=c[5]?.trim()||''; cierreHora=c[10]?.trim()||''
+        if(apertura) fechaCSV=apertura.split(' ')[0]||''
+      }
+    })
+    const datosCaja = {ef:totalEf,efBruto:totalEfBruto,deb:totalDeb,cred:totalCred,transf:totalTransf,cheque:totalCheque,dev:totalDev,totalVentas,vendedores:Object.values(vendMap),nroCaja,nroCierre,apertura,cierreHora,fechaCSV}
     setGolanCajas(prev=>({...prev,['c'+caja]:datosCaja}))
     setGolan(prev=>({
       ef: prev.ef+totalEf,
@@ -230,7 +240,17 @@ export default function Arqueo() {
       totalVentas: prev.totalVentas+(totalVentas||totalEfBruto+totalDeb+totalCred+totalTransf+totalCheque),
       vendedores: [...(prev.vendedores||[]), ...Object.values(vendMap)]
     }))
-        if(caja===1) setGolanCargado1(true)
+        // Validar que la fecha del CSV coincide con la fecha del arqueo
+    if(fechaCSV && fecha){
+      const partes = fechaCSV.split('/')
+      if(partes.length===3){
+        const fechaCSViso = partes[2]+'-'+partes[1].padStart(2,'0')+'-'+partes[0].padStart(2,'0')
+        if(fechaCSViso !== fecha){
+          alert('Advertencia: el CSV de Caja '+caja+' corresponde al '+fechaCSV+' pero el arqueo es del '+fecha+'. Verifica que subiste el archivo correcto.')
+        }
+      }
+    }
+    if(caja===1) setGolanCargado1(true)
     if(caja===2) setGolanCargado2(true)
   }
 
@@ -415,7 +435,11 @@ export default function Arqueo() {
                         const c=golanCajas['c'+n]
                         return (
                           <div key={n} style={{background:'var(--s2)',borderRadius:10,padding:12,border:'1px solid var(--bdr)'}}>
-                            <div style={{fontSize:12,fontWeight:600,color:'var(--blue)',marginBottom:8}}>Caja {n}</div>
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                              <div style={{fontSize:12,fontWeight:600,color:'var(--blue)'}}>Caja {n}</div>
+                              {c.nroCierre&&<div style={{fontSize:10,color:'var(--t3)'}}>Cierre Z #{c.nroCierre}</div>}
+                            </div>
+
                             {[['Efectivo neto',c.ef],['Debito',c.deb],['Credito',c.cred],['Transferencia',c.transf],['Cheque 30 dias',c.cheque],['Devoluciones',c.dev],['Total',c.totalVentas]].filter(([,v])=>v>0).map(([l,v])=>(
                               <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',borderBottom:'1px solid var(--bdr)',fontSize:11}}>
                                 <span style={{color:l==='Total'?'var(--tx)':'var(--t2)',fontWeight:l==='Total'?600:400}}>{l}</span>
