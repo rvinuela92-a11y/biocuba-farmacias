@@ -91,6 +91,9 @@ export default function Arqueo() {
   
   // Depositos tab
   const [depositos, setDepositos] = useState([])
+  const [seleccionados, setSeleccionados] = useState([])
+  const [bancoDeposito, setBancoDeposito] = useState('')
+  const [confirmandoDeposito, setConfirmandoDeposito] = useState(false)
   const [depHistorial, setDepHistorial] = useState([])
   const [depTab, setDepTab] = useState('pendientes')
   
@@ -763,11 +766,64 @@ export default function Arqueo() {
             </div>
             {depTab==='pendientes'&&(
               <div>
+                {/* Panel de confirmacion cuando hay seleccionados */}
+                {seleccionados.length>0&&(
+                  <div style={{background:'var(--bbg)',border:'2px solid var(--bbdr)',borderRadius:12,padding:16,marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--blue)',marginBottom:10}}>
+                      Confirmar deposito — {seleccionados.length} dia(s) seleccionado(s)
+                    </div>
+                    <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:10,flexWrap:'wrap'}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>BANCO</div>
+                        <input list="bancos-dep" value={bancoDeposito} onChange={e=>setBancoDeposito(e.target.value)} placeholder="Seleccionar banco..." style={{fontSize:13,padding:'8px 12px',border:'1.5px solid var(--bdr)',borderRadius:8,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
+                        <datalist id="bancos-dep">
+                          <option value="Banco de Chile" />
+                          <option value="Banco Santander" />
+                          <option value="Banco BICE" />
+                          <option value="Scotiabank" />
+                          <option value="Banco Itaú" />
+                        </datalist>
+                      </div>
+                      <div style={{textAlign:'right'}}>
+                        <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>TOTAL A DEPOSITAR</div>
+                        <div style={{fontFamily:'var(--mono)',fontSize:20,fontWeight:700,color:'var(--blue)'}}>
+                          {fmt(seleccionados.reduce((s,id)=>s+(depositos.find(d=>d.id===id)?.monto||0),0))}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{fontSize:11,color:'var(--t2)',marginBottom:10}}>
+                      Dias incluidos: {seleccionados.map(id=>depositos.find(d=>d.id===id)?.fecha_dep).join(', ')}
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button onClick={async()=>{
+                        if(!bancoDeposito){alert('Selecciona el banco antes de confirmar');return}
+                        if(!confirm('Confirmar deposito de '+fmt(seleccionados.reduce((s,id)=>s+(depositos.find(d=>d.id===id)?.monto||0),0))+' en '+bancoDeposito+'?'))return
+                        for(const id of seleccionados){
+                          await supabase.from('depositos').update({confirmado:true,banco:bancoDeposito,fecha_confirmacion:hoy()}).eq('id',id)
+                        }
+                        setSeleccionados([])
+                        setBancoDeposito('')
+                        cargarDepositos(session)
+                      }} style={{padding:'9px 20px',borderRadius:8,border:'none',background:'var(--green)',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                        Confirmar deposito
+                      </button>
+                      <button onClick={()=>{setSeleccionados([]);setBancoDeposito('')}} style={{padding:'9px 16px',borderRadius:8,border:'1px solid var(--bdr)',background:'transparent',color:'var(--t2)',fontSize:13,cursor:'pointer'}}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {depositos.filter(d=>!d.confirmado).length===0?
                   <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos pendientes. Se generan automaticamente al guardar el arqueo diario.</div>:
                   depositos.filter(d=>!d.confirmado).map((dep,i)=>(
-                    <div key={dep.id||i} style={{background:'#fff',border:'1px solid var(--abdr)',borderRadius:12,padding:16,marginBottom:10}}>
-                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
+                    <div key={dep.id||i} style={{background:seleccionados.includes(dep.id)?'var(--bbg)':'#fff',border:`1px solid ${seleccionados.includes(dep.id)?'var(--bbdr)':'var(--abdr)'}`,borderRadius:12,padding:16,marginBottom:10}}>
+                      <div style={{display:'grid',gridTemplateColumns:'auto auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
+                        <div style={{display:'flex',alignItems:'center',paddingBottom:2}}>
+                          <input type="checkbox" checked={seleccionados.includes(dep.id)} onChange={e=>{
+                            if(e.target.checked) setSeleccionados([...seleccionados,dep.id])
+                            else setSeleccionados(seleccionados.filter(id=>id!==dep.id))
+                          }} style={{width:18,height:18,cursor:'pointer'}} />
+                        </div>
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>FECHA</div>
                           <div style={{fontSize:13,fontWeight:500}}>{dep.fecha_dep}</div>
