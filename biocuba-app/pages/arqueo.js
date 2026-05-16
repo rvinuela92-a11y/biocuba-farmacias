@@ -1031,9 +1031,6 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.transf_real||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.cheque||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?(dif>0?'var(--amber)':'var(--red)'):'var(--green)'}}>{dif===0?'OK':dif>0?'+'+fmt(dif):fmt(dif)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.transf||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.cheque||0)}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)'}}>{a.usuario_nombre}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.obs||'—'}</td>
                           <td style={{padding:'8px 12px',display:'flex',gap:6,alignItems:'center'}}>
