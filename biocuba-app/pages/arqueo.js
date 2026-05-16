@@ -1030,9 +1030,9 @@ export default function Arqueo() {
                     {histLoading?<tr><td colSpan={8} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Cargando...</td></tr>:
                     historial.length===0?<tr><td colSpan={8} style={{padding:20,textAlign:'center',color:'var(--t3)'}}>Sin arqueos este mes</td></tr>:
                     historial.map((a,i)=>{
-                      const dif=a.dif_ef||0
+                      const dif=a.dif_neta!==null&&a.dif_neta!==undefined ? a.dif_neta : (a.dif_ef||0)
                       return (
-                        <tr key={a.id} style={{borderTop:'1px solid var(--bdr)',background:dif!==0?'var(--rbg)':i%2===0?'#fff':'var(--s2)'}}>
+                        <tr key={a.id} style={{borderTop:'1px solid var(--bdr)',background:dif!==0&&dif!==null?'var(--rbg)':i%2===0?'#fff':'var(--s2)'}}>
                           <td style={{padding:'8px 12px',fontWeight:500}}>{a.fecha}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalVentas||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
