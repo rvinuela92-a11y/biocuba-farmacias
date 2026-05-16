@@ -798,8 +798,9 @@ export default function Arqueo() {
                       <button onClick={async()=>{
                         if(!bancoDeposito){alert('Selecciona el banco antes de confirmar');return}
                         if(!confirm('Confirmar deposito de '+fmt(seleccionados.reduce((s,id)=>s+(depositos.find(d=>d.id===id)?.monto||0),0))+' en '+bancoDeposito+'?'))return
+                        const diasInc=seleccionados.map(id=>depositos.find(d=>d.id===id)?.fecha_dep).filter(Boolean)
                         for(const id of seleccionados){
-                          await supabase.from('depositos').update({confirmado:true,banco:bancoDeposito,fecha_confirmacion:hoy()}).eq('id',id)
+                          await supabase.from('depositos').update({confirmado:true,banco:bancoDeposito,fecha_confirmacion:hoy(),dias_incluidos:diasInc}).eq('id',id)
                         }
                         setSeleccionados([])
                         setBancoDeposito('')
@@ -897,7 +898,7 @@ export default function Arqueo() {
                   <div style={{overflowX:'auto'}}>
                     <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                       <thead><tr style={{background:'var(--s2)'}}>
-                        {['Fecha','Banco','Monto','Observación','Estado'].map(h=>(
+                        {['Fecha','Banco','Monto','Dias incluidos','Estado'].map(h=>(
                           <th key={h} style={{padding:'8px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
                         ))}
                       </tr></thead>
@@ -908,7 +909,7 @@ export default function Arqueo() {
                             <td style={{padding:'8px 12px'}}>{d.fecha_dep}</td>
                             <td style={{padding:'8px 12px',fontWeight:500}}>{d.banco||'—'}</td>
                             <td style={{padding:'8px 12px',fontFamily:'var(--mono)',fontWeight:600,color:'var(--green)'}}>{fmt(d.monto)}</td>
-                            <td style={{padding:'8px 12px',color:'var(--t2)'}}>{d.obs||'—'}</td>
+                            <td style={{padding:'8px 12px',color:'var(--t2)',fontSize:11}}>{d.dias_incluidos?.join(', ')||d.fecha_dep||'—'}</td>
                             <td style={{padding:'8px 12px'}}>
                               {d.confirmado
                                 ?<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'var(--gbg)',color:'var(--green)'}}>Confirmado {d.fecha_confirmacion}</span>
