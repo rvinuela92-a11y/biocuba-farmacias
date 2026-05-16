@@ -316,6 +316,14 @@ export default function Arqueo() {
       }
       const {error} = await supabase.from('arqueos').upsert(payload,{onConflict:'id'})
       if(error){ console.error('Supabase error:', error); throw new Error(error.message||'Error al guardar en Supabase') }
+      // Si hay arrastre declarado, marcar dias anteriores como conciliados
+      if(!error && (parseInt(arrastre)||0)!==0){
+        const {data:diasPend} = await supabase.from('arqueos').select('id,dif_ef,dif_neta').eq('sucursal_id',session.sucursal).lt('fecha',fecha).neq('dif_ef',0)
+        for(const d of (diasPend||[])){
+          const neta = (d.dif_neta!==null&&d.dif_neta!==undefined) ? d.dif_neta : d.dif_ef
+          if(neta!==0) await supabase.from('arqueos').update({dif_neta:0}).eq('id',d.id)
+        }
+      }
       localStorage.removeItem(BORRADOR_KEY)
       // Crear deposito pendiente automatico con el efectivo neto
       if(efNeto>0){
