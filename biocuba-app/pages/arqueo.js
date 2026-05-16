@@ -731,10 +731,10 @@ export default function Arqueo() {
                 </div>
                 {arrastre!==0&&(
                   <div style={{padding:'10px 14px',borderRadius:8,background:difNeta===0?'var(--gbg)':'var(--rbg)',border:'1px solid '+(difNeta===0?'var(--gbdr)':'var(--rbdr)'),display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span style={{fontSize:13,fontWeight:600,color:difNeta===0?'var(--green)':'var(--red)'}}>
+                    <span style={{fontSize:13,fontWeight:600,color:difNeta===0?'var(--green)':difNeta>0?'var(--amber)':'var(--red)'}}>
                       {difNeta===0?'Diferencia neta: CERO — alerta resuelta':'Diferencia neta: '+fmt(difNeta)}
                     </span>
-                    <span style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:difNeta===0?'var(--green)':'var(--red)'}}>{fmt(difNeta)}</span>
+                    <span style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:difNeta===0?'var(--green)':difNeta>0?'var(--amber)':'var(--red)'}}>{fmt(difNeta)}</span>
                   </div>
                 )}
               </div>
