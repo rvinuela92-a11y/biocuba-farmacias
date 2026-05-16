@@ -398,7 +398,7 @@ export default function Arqueo() {
               {[
                 {lbl:'Venta Total del Dia',val:fmt(golan.totalVentas),sub:'Segun cierre Z de Golan',color:'var(--blue)'},
                 {lbl:'Efectivo a Depositar',val:fmt(efNeto),sub:'Total cajas menos fondos',color:'var(--green)'},
-                {lbl:'Diferencia en Efectivo',val:difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),sub:'Golan vs arqueo real',color:difEf===0&&efTotal>0?'var(--green)':difEf!==0?'var(--red)':'var(--t3)'},
+                {lbl:'Diferencia en Efectivo',val:difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),sub:'Golan vs arqueo real',color:difEf===0&&efTotal>0?'var(--green)':difEf>0?'var(--amber)':'var(--red)'},
                 ...(session?.convenios?[{lbl:'Convenios (Cheque)',val:fmt(golan.cheque),sub:'Bienestar + Sindicato',color:'var(--amber)'}]:[]),
               ].map((k,i)=>(
                 <div key={i} style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:10,padding:'12px 14px'}}>
@@ -524,7 +524,7 @@ export default function Arqueo() {
                 <div style={{background:'var(--s2)',borderRadius:10,padding:14}}>
                   <div style={{fontSize:12,fontWeight:600,marginBottom:10,color:'var(--t2)'}}>Comparacion Efectivo — Golan vs Arqueo Real</div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-                    {[['Golan dice',fmt(golan.ef),'var(--blue)'],['Arqueo real',fmt(efNeto),'var(--tx)'],['Diferencia',difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),difEf===0&&efTotal>0?'var(--green)':difEf!==0?'var(--red)':'var(--t3)']].map(([l,v,c])=>(
+                    {[['Golan dice',fmt(golan.ef),'var(--blue)'],['Arqueo real',fmt(efNeto),'var(--tx)'],['Diferencia',difEf===0&&efTotal>0?'OK':efTotal===0?'—':fmt(difEf),difEf===0&&efTotal>0?'var(--green)':difEf>0?'var(--amber)':'var(--red)']].map(([l,v,c])=>(
                       <div key={l} style={{textAlign:'center',background:'#fff',borderRadius:8,padding:10}}>
                         <div style={{fontSize:9,color:'var(--t3)',textTransform:'uppercase',marginBottom:4}}>{l}</div>
                         <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:c}}>{v}</div>
