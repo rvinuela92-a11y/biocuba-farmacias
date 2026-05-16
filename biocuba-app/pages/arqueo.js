@@ -820,7 +820,7 @@ export default function Arqueo() {
                   <div style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:12,padding:24,textAlign:'center',color:'var(--t3)',fontSize:13}}>Sin depositos pendientes. Se generan automaticamente al guardar el arqueo diario.</div>:
                   depositos.filter(d=>!d.confirmado).map((dep,i)=>(
                     <div key={dep.id||i} style={{background:seleccionados.includes(dep.id)?'var(--bbg)':'#fff',border:`1px solid ${seleccionados.includes(dep.id)?'var(--bbdr)':'var(--abdr)'}`,borderRadius:12,padding:16,marginBottom:10}}>
-                      <div style={{display:'grid',gridTemplateColumns:'auto auto 1fr 1fr 1fr auto',gap:10,alignItems:'end'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'auto 1fr auto auto',gap:10,alignItems:'center'}}>
                         <div style={{display:'flex',alignItems:'center',paddingBottom:2}}>
                           <input type="checkbox" checked={seleccionados.includes(dep.id)} onChange={e=>{
                             if(e.target.checked) setSeleccionados([...seleccionados,dep.id])
@@ -830,15 +830,6 @@ export default function Arqueo() {
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>FECHA</div>
                           <div style={{fontSize:13,fontWeight:500}}>{dep.fecha_dep}</div>
-                        </div>
-                        <div>
-                          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>BANCO</div>
-                          <input value={dep.banco||''} onChange={async e=>{
-                            const nuevos=[...depositos]
-                            nuevos[i]={...nuevos[i],banco:e.target.value}
-                            setDepositos(nuevos)
-                            await supabase.from('depositos').update({banco:e.target.value}).eq('id',dep.id)
-                          }} list="bancos-dep" placeholder="Seleccionar banco..." style={{fontSize:13,padding:"6px 10px",border:"1.5px solid var(--bdr)",borderRadius:7,outline:"none",width:"100%",fontFamily:"var(--font)"}} style={{fontSize:13,padding:'6px 10px',border:'1.5px solid var(--bdr)',borderRadius:7,outline:'none',width:'100%',fontFamily:'var(--font)'}} />
                         </div>
                         <div>
                           <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>MONTO</div>
