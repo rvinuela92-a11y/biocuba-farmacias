@@ -1013,7 +1013,7 @@ export default function Arqueo() {
               <div style={{overflowX:'auto'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                   <thead><tr style={{background:'var(--s2)'}}>
-                    {['Fecha','Ventas Golan','Ef. Golan','Ef. Neto','Diferencia','SumUp','Guardado por','Obs','Estado'].map(h=>(
+                    {['Fecha','Ventas Golan','Efectivo','Debito/SumUp','Transferencia','Convenios','Diferencia','Guardado por','Obs','Estado'].map(h=>(
                       <th key={h} style={{padding:'10px 12px',textAlign:'left',fontWeight:600,color:'var(--t2)',whiteSpace:'nowrap'}}>{h}</th>
                     ))}
                   </tr></thead>
@@ -1027,9 +1027,11 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontWeight:500}}>{a.fecha}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalVentas||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.ef_neto||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'OK'}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.sumup||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.transf||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.cheque||0)}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)'}}>{a.usuario_nombre}</td>
                           <td style={{padding:'8px 12px',color:'var(--t2)',maxWidth:150,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.obs||'—'}</td>
                           <td style={{padding:'8px 12px',display:'flex',gap:6,alignItems:'center'}}>
