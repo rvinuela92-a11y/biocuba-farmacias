@@ -393,7 +393,7 @@ export default function Arqueo() {
               <div style={{fontSize:13,fontWeight:600,color:'var(--amber)'}}>
                 Diferencias acumuladas de dias anteriores
               </div>
-              <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:totalArrastre>0?'var(--amber)':totalArrastre<0?'var(--red)':'var(--green)'}}>
+              <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:totalArrastre>0?'var(--green)':totalArrastre<0?'var(--red)':'var(--green)'}}>
                 {totalArrastre>0?'+':''}{fmt(totalArrastre)}
               </div>
             </div>
@@ -404,7 +404,7 @@ export default function Arqueo() {
               {arrastresAcum.map(a=>(
                 <div key={a.id} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'3px 0',borderBottom:'1px solid rgba(0,0,0,.06)'}}>
                   <span style={{color:'var(--t2)'}}>{a.fecha}</span>
-                  <span style={{fontFamily:'var(--mono)',fontWeight:600,color:(a.dif_neta||a.dif_ef||0)>0?'var(--amber)':(a.dif_neta||a.dif_ef||0)<0?'var(--red)':'var(--green)'}}>
+                  <span style={{fontFamily:'var(--mono)',fontWeight:600,color:(a.dif_neta||a.dif_ef||0)>0?'var(--green)':(a.dif_neta||a.dif_ef||0)<0?'var(--red)':'var(--green)'}}>
                     {(a.dif_neta||a.dif_ef||0)>0?'+':''}{fmt(a.dif_neta||a.dif_ef||0)}
                   </span>
                 </div>
@@ -1002,7 +1002,7 @@ export default function Arqueo() {
                 {lbl:'Ventas del mes',val:fmt(historial.reduce((s,a)=>s+(a.golan?.totalVentas||0),0)),color:'var(--blue)'},
                 {lbl:'Efectivo',val:fmt(historial.reduce((s,a)=>s+(a.golan?.ef||0),0)),color:'var(--green)'},
                 {lbl:'Dias registrados',val:historial.length,color:'var(--t2)'},
-                {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_ef||0)!==0).length,color:'var(--red)'},
+                {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_neta||a.dif_ef||0)!==0).length,color:'var(--red)'},
               ].map((k,i)=>(
                 <div key={i} style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:10,padding:'14px 16px'}}>
                   <div style={{fontSize:10,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5}}>{k.lbl}</div>
