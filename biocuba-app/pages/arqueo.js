@@ -479,7 +479,7 @@ export default function Arqueo() {
                               {c.nroCierre&&<div style={{fontSize:10,color:'var(--t3)'}}>Cierre Z #{c.nroCierre}</div>}
                             </div>
 
-                            {[['Efectivo neto',c.ef],['Debito',c.deb],['Credito',c.cred],['Transferencia',c.transf],['Cheque 30 dias',c.cheque],['Devoluciones',c.dev],['Total',c.totalVentas]].filter(([,v])=>v>0).map(([l,v])=>(
+                            {[['Efectivo',c.ef],['Debito',c.deb],['Credito',c.cred],['Transferencia',c.transf],['Cheque 30 dias',c.cheque],['Devoluciones',c.dev],['Total',c.totalVentas]].filter(([,v])=>v>0).map(([l,v])=>(
                               <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'3px 0',borderBottom:'1px solid var(--bdr)',fontSize:11}}>
                                 <span style={{color:l==='Total'?'var(--tx)':'var(--t2)',fontWeight:l==='Total'?600:400}}>{l}</span>
                                 <span style={{fontFamily:'var(--mono)',fontWeight:l==='Total'?700:500,color:l==='Devoluciones'?'var(--red)':l==='Total'?'var(--blue)':'var(--tx)'}}>${v.toLocaleString('es-CL')}</span>
@@ -999,7 +999,7 @@ export default function Arqueo() {
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
               {[
                 {lbl:'Ventas del mes',val:fmt(historial.reduce((s,a)=>s+(a.golan?.totalVentas||0),0)),color:'var(--blue)'},
-                {lbl:'Efectivo neto',val:fmt(historial.reduce((s,a)=>s+(a.ef_neto||0),0)),color:'var(--green)'},
+                {lbl:'Efectivo',val:fmt(historial.reduce((s,a)=>s+(a.ef_neto||0),0)),color:'var(--green)'},
                 {lbl:'Dias registrados',val:historial.length,color:'var(--t2)'},
                 {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_ef||0)!==0).length,color:'var(--red)'},
               ].map((k,i)=>(
@@ -1027,7 +1027,7 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontWeight:500}}>{a.fecha}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalVentas||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'OK'}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.transf||0)}</td>
