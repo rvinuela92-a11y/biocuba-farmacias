@@ -11,7 +11,7 @@ const BILLETES = [20000,10000,5000,2000,1000,500,100,50,10]
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const CATS_GASTO = {sencilla:'Fondo de cambio / Sencilla',limpieza:'Limpieza y Aseo',oficina:'Artículos de Oficina',mant_local:'Reparaciones y Mantención Local',mant_equipos:'Mantención de Equipos',otros:'Otros'}
-const CAUSAS_DIF = ['Sobrante — vuelto menor al cliente','Sobrante — error en medio de pago','Sobrante — causa desconocida','Faltante — error en vuelto al cliente','Faltante — billete falso','Faltante — gasto no registrado','Faltante — sencilla no registrada','Faltante — causa desconocida','Otro']
+const CAUSAS_DIF = ['Arrastre positivo — sobrante de dia anterior','Arrastre negativo — faltante de dia anterior','Sobrante — vuelto menor al cliente','Sobrante — error en medio de pago','Sobrante — causa desconocida','Faltante — error en vuelto al cliente','Faltante — billete falso','Faltante — gasto no registrado','Faltante — sencilla no registrada','Faltante — causa desconocida','Otro']
 
 export default function Arqueo() {
   const router = useRouter()
