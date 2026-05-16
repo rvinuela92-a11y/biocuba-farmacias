@@ -153,12 +153,12 @@ export default function Arqueo() {
 
   async function cargarDifPendientes(s){
     const hoyDate = hoy()
-    const {data} = await supabase.from('arqueos').select('fecha,dif_ef,dif_neta,motivo,arrastre').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0).neq('dif_neta',0)
+    const {data} = await supabase.from('arqueos').select('fecha,dif_ef,dif_neta,motivo,arrastre').eq('sucursal_id',s.sucursal).lt('fecha',hoyDate).neq('dif_ef',0).gt('fecha',new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().split('T')[0])
     const sinMotivo = (data||[]).filter(r=>!r.motivo?.causa)
     setDifPendientes(sinMotivo)
     // Calcular arrastre acumulado de todos los dias con diferencia sin netear
-    // Solo dias donde dif_neta NO es exactamente 0 (null = nunca conciliado, != 0 = pendiente)
-    const conDif = (data||[]).filter(r=>r.dif_neta!==0)
+    // Excluir SOLO los dias donde dif_neta es EXACTAMENTE el numero 0
+    const conDif = (data||[]).filter(r=> r.dif_neta !== 0)
     const acum = conDif.reduce((s,r)=>s+(r.dif_neta!==null&&r.dif_neta!==undefined ? r.dif_neta : (r.dif_ef||0)),0)
     setArrastresAcum(conDif)
     setTotalArrastre(acum)
@@ -1010,7 +1010,7 @@ export default function Arqueo() {
                 {lbl:'Ventas del mes',val:fmt(historial.reduce((s,a)=>s+(a.golan?.totalVentas||0),0)),color:'var(--blue)'},
                 {lbl:'Efectivo',val:fmt(historial.reduce((s,a)=>s+(a.golan?.ef||0),0)),color:'var(--green)'},
                 {lbl:'Dias registrados',val:historial.length,color:'var(--t2)'},
-                {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_neta||a.dif_ef||0)!==0).length,color:'var(--red)'},
+                {lbl:'Dias con diferencia',val:historial.filter(a=>a.dif_neta!==0&&a.dif_neta!==null&&a.dif_neta!==undefined).length,color:'var(--red)'},
               ].map((k,i)=>(
                 <div key={i} style={{background:'#fff',border:'1px solid var(--bdr)',borderRadius:10,padding:'14px 16px'}}>
                   <div style={{fontSize:10,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5}}>{k.lbl}</div>
