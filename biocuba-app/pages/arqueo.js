@@ -999,7 +999,7 @@ export default function Arqueo() {
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:20}}>
               {[
                 {lbl:'Ventas del mes',val:fmt(historial.reduce((s,a)=>s+(a.golan?.totalVentas||0),0)),color:'var(--blue)'},
-                {lbl:'Efectivo',val:fmt(historial.reduce((s,a)=>s+(a.ef_neto||0),0)),color:'var(--green)'},
+                {lbl:'Efectivo',val:fmt(historial.reduce((s,a)=>s+(a.golan?.ef||0),0)),color:'var(--green)'},
                 {lbl:'Dias registrados',val:historial.length,color:'var(--t2)'},
                 {lbl:'Dias con diferencia',val:historial.filter(a=>(a.dif_ef||0)!==0).length,color:'var(--red)'},
               ].map((k,i)=>(
@@ -1028,7 +1028,9 @@ export default function Arqueo() {
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.totalVentas||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.ef||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
-                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?'var(--red)':'var(--green)'}}>{dif!==0?fmt(dif):'OK'}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.transf_real||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.cheque||0)}</td>
+                          <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right',fontWeight:600,color:dif!==0?(dif>0?'var(--amber)':'var(--red)'):'var(--green)'}}>{dif===0?'OK':dif>0?'+'+fmt(dif):fmt(dif)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt((a.golan?.deb||0)+(a.sumup||0))}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.transf||0)}</td>
                           <td style={{padding:'8px 12px',fontFamily:'var(--mono)',textAlign:'right'}}>{fmt(a.golan?.cheque||0)}</td>
