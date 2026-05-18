@@ -12,7 +12,7 @@ const MODULOS_DEF = {
   arqueo:    { icon:'📊', titulo:'Arqueo de Caja',      sub:'Cierre diario de cajas',           href:'/arqueo'    },
   bienestar: { icon:'🏥', titulo:'Bienestar Municipal', sub:'Convenio Municipalidad Maipú',     href:'/bienestar' },
   sindicato: { icon:'🤝', titulo:'Sindicato Municipal', sub:'Convenio Sindicato',               href:'/sindicato' },
-  magistral: { icon:'⚗️', titulo:'Recetario Magistral',sub:'Preparados farmacéuticos del mes', href:'/magistral' },
+  magistral: { iconImg:'/icono-recetario.png', titulo:'Recetario Magistral',sub:'Preparados farmacéuticos del mes', href:'/magistral' },
   fondo:     { icon:'💰', titulo:'Fondo de Caja',       sub:'Control del fondo de cambio',      href:'/fondo'     },
   cobros:    { icon:'📋', titulo:'Cobros Pendientes',   sub:'Cuentas por cobrar pendientes',    href:'/cobros'    },
 }
@@ -41,7 +41,7 @@ export default function QF() {
         supabase.from('arqueos').select('*').eq('sucursal_id',suc).eq('fecha',fecha).single(),
         supabase.from('bienestar_ventas').select('monto').eq('sucursal_id',suc).eq('fecha',fecha),
         supabase.from('sindicato_ventas').select('monto').eq('sucursal_id',suc).eq('mes',mesActual),
-        supabase.from('magistral_ventas').select('monto').eq('sucursal_id',suc).eq('mes',mesActual),
+        supabase.from('recetas_magistrales').select('monto').eq('sucursal_id',suc).eq('estado','retirada').gte('created_at', mesActual+'-01'),
       ])
       const arqueoHoy = rArqueo.data
       // Depositos pendientes no confirmados
@@ -50,7 +50,7 @@ export default function QF() {
 
     const tB = (rB.data||[]).reduce((s,v)=>s+v.monto,0)
       const tS = (rS.data||[]).reduce((s,v)=>s+v.monto,0)
-      const tM = (rM.data||[]).reduce((s,v)=>s+v.monto,0)
+      const tM = (rM.data||[]).reduce((s,v)=>s+(v.monto||0),0)
       setStats({ arqueoHoy, tB, tS, tM, depPendiente })
       const als = []
       if (!arqueoHoy && new Date().getHours()>=14) als.push({tipo:'amber',msg:'📋 El arqueo de hoy aún no ha sido registrado'})
@@ -117,7 +117,11 @@ export default function QF() {
             const stat=getStatModulo(mod)
             return (
               <a key={mod} href={def.href} style={{background:stat.color==='red'?'var(--rbg)':stat.color==='amber'?'var(--abg)':'#fff',border:`1.5px solid ${stat.color==='red'?'var(--rbdr)':stat.color==='amber'?'var(--abdr)':'var(--bdr)'}`,borderRadius:14,padding:20,textDecoration:'none',display:'block'}}>
-                <div style={{fontSize:28,marginBottom:10}}>{def.icon}</div>
+                {def.iconImg ? (
+                  <img src={def.iconImg} alt="" style={{width:38,height:38,borderRadius:'50%',marginBottom:10,display:'block'}}/>
+                ) : (
+                  <div style={{fontSize:28,marginBottom:10}}>{def.icon}</div>
+                )}
                 <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--tx)'}}>{def.titulo}</div>
                 <div style={{fontSize:11,color:'var(--t3)',lineHeight:1.4,marginBottom:10}}>{def.sub}</div>
                 <span style={{fontSize:11,fontWeight:500,padding:'3px 10px',borderRadius:20,background:COLORES[stat.color],color:COLORES_TX[stat.color]}}>{stat.texto}</span>
